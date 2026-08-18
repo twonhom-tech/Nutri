@@ -1,0 +1,10 @@
+{
+  "description": "Analyzes and evaluates the nutritional content of students' breakfast meals, providing detailed reports and AI-driven dietary recommendations for healthier choices.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

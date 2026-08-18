@@ -1,0 +1,84 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'DM Sans', sans-serif;
+  --font-body: 'Nunito', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Nunito', sans-serif;
+  background: #f9fafb;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #a7f3d0; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #10b981; }
+
+.upload-zone {
+  border: 2px dashed #10b981;
+  border-radius: 16px;
+  transition: all 0.2s;
+}
+.upload-zone:hover {
+  border-color: #047857;
+  background: #ecfdf5;
+}
+
+.btn-primary {
+  background: #10b981;
+  color: #fff;
+  border-radius: 10px;
+  font-weight: 700;
+  transition: background 0.18s;
+}
+.btn-primary:hover { background: #047857; }
+
+.metric-card {
+  background: #ecfdf5;
+  border: 1.5px solid #a7f3d0;
+  border-radius: 16px;
+}
+
+.tip-good {
+  background: #ecfdf5;
+  border-left: 4px solid #10b981;
+  border-radius: 10px;
+}
+
+.tip-warn {
+  background: #ffedd5;
+  border-left: 4px solid #f97316;
+  border-radius: 10px;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-weight: 600;
+  color: #047857;
+  transition: background 0.15s;
+  cursor: pointer;
+}
+.sidebar-link:hover, .sidebar-link.active {
+  background: #a7f3d0;
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.spin-slow { animation: spin-slow 2s linear infinite; }
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
