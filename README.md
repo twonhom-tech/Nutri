@@ -27,7 +27,7 @@ A Vietnamese nutrition tracking application built with Streamlit. This app helps
 
 1. Clone or navigate to the project directory:
 ```bash
-cd d:\WORK-TRAN\NutritionSystem
+cd NutritionSystem
 ```
 
 2. Install dependencies:
