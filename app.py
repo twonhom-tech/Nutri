@@ -549,70 +549,19 @@ def roboflow_detection_page():
         hide_index=True,
     )
 
-# Vietnamese dishes database
+# ============================================================
+# GỢI Ý MÓN ĂN SÁNG CHO HỌC SINH THPT
+# ============================================================
+# Lượng kcal là mức ước tính theo khẩu phần tham khảo và có thể chỉnh sửa.
 DISHES = [
-    {
-        'name': 'Cơm tấm sườn bì chả',
-        'image': 'https://images.unsplash.com/photo-1569050467447-ce54b3bbc37d?w=600&h=400&fit=crop&auto=format',
-        'calories': 520,
-        'protein': 28,
-        'carbs': 58,
-        'fat': 18,
-        'fiber': 3.2,
-        'vitamins': 72,
-        'score': 74,
-        'items': ['Cơm tấm (200g)', 'Sườn nướng (80g)', 'Bì heo (30g)', 'Chả trứng (40g)', 'Dưa leo (50g)', 'Cà chua (30g)'],
-        'goodFeedback': [
-            'Cung cấp đủ protein từ thịt sườn và chả.',
-            'Có rau tươi kèm theo (dưa leo, cà chua).',
-            'Năng lượng phù hợp cho buổi học sáng.',
-        ],
-        'warnFeedback': [
-            'Hàm lượng chất xơ còn thấp — nên thêm rau xanh.',
-            'Chất béo từ bì heo khá cao, nên ăn vừa phải.',
-        ],
-    },
-    {
-        'name': 'Bánh mì thịt nguội',
-        'image': 'https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=600&h=400&fit=crop&auto=format',
-        'calories': 380,
-        'protein': 18,
-        'carbs': 45,
-        'fat': 14,
-        'fiber': 2.1,
-        'vitamins': 55,
-        'score': 62,
-        'items': ['Bánh mì (100g)', 'Thịt nguội (60g)', 'Pate (20g)', 'Dưa leo (40g)', 'Hành ngò (10g)', 'Tương ớt (10g)'],
-        'goodFeedback': [
-            'Dễ ăn, tiện lợi cho buổi sáng.',
-            'Có rau thơm và dưa leo.',
-        ],
-        'warnFeedback': [
-            'Thiếu chất xơ và vitamin đáng kể.',
-            'Pate và thịt nguội chứa nhiều natri — không nên ăn mỗi ngày.',
-            'Nên bổ sung thêm 1 ly sữa hoặc trái cây.',
-        ],
-    },
-    {
-        'name': 'Phở bò tái chín',
-        'image': 'https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?w=600&h=400&fit=crop&auto=format',
-        'calories': 450,
-        'protein': 32,
-        'carbs': 52,
-        'fat': 10,
-        'fiber': 4.5,
-        'vitamins': 85,
-        'score': 88,
-        'items': ['Bánh phở (150g)', 'Thịt bò tái (60g)', 'Thịt bò chín (40g)', 'Giá đỗ (50g)', 'Hành lá (15g)', 'Rau thơm (20g)'],
-        'goodFeedback': [
-            'Protein cao, chất béo thấp — rất cân bằng.',
-            'Giàu chất xơ từ rau giá và rau thơm.',
-            'Đạt chuẩn dinh dưỡng bữa sáng học sinh.',
-        ],
-        'warnFeedback': [
-            'Nước dùng có thể chứa nhiều natri — không uống hết nước.',
-        ],
-    },
+    {"name":"🥖 Bánh mì","calories":"400 – 600 kcal","short_description":"Bữa sáng tiện lợi, giàu năng lượng và dễ kết hợp nhiều nhóm thực phẩm.","items":["Bánh mì","Thịt, trứng hoặc chả cá","Rau xanh, dưa leo","Nước sốt"],"nutrition":"Cung cấp carbohydrate từ bánh mì; thịt, trứng hoặc chả cá cung cấp protein; rau xanh góp phần bổ sung chất xơ.","goodFeedback":["Tiện lợi, phù hợp với học sinh có thời gian ăn sáng hạn chế.","Có thể kết hợp tinh bột, protein và rau trong cùng khẩu phần.","Có nhiều lựa chọn nhân để thay đổi thực đơn."],"warnFeedback":["Nên ưu tiên thêm rau và lựa chọn nhân ít chất béo.","Không nên sử dụng quá nhiều pate, sốt hoặc thực phẩm chế biến sẵn."],"tip":"Ưu tiên bánh mì có trứng/thịt + nhiều rau; có thể kết hợp thêm sữa hoặc trái cây."},
+    {"name":"🍚 Xôi mặn","calories":"350 – 450 kcal","short_description":"Món ăn giàu năng lượng từ gạo nếp, kết hợp nhiều loại nhân mặn.","items":["Gạo nếp","Pate","Chả lụa","Chà bông","Trứng cút","Lạp xưởng"],"nutrition":"Gạo nếp cung cấp carbohydrate và năng lượng; thịt, chả và trứng bổ sung protein.","goodFeedback":["Cung cấp năng lượng cho hoạt động học tập buổi sáng.","Có thể thay đổi nhân để tạo sự đa dạng."],"warnFeedback":["Một số loại nhân có thể chứa nhiều chất béo và natri.","Nên kết hợp thêm rau hoặc trái cây để tăng chất xơ và vitamin."],"tip":"Chọn khẩu phần vừa phải và bổ sung trái cây hoặc sữa để bữa sáng đa dạng hơn."},
+    {"name":"🥟 Bánh bao nhân thịt","calories":"Khoảng 350 kcal","short_description":"Lựa chọn nhanh gọn với vỏ bánh bột mì, nhân thịt và trứng cút.","items":["Vỏ bánh","Thịt băm","Trứng cút","Gia vị và nhân phụ"],"nutrition":"Cung cấp carbohydrate từ vỏ bánh và protein từ thịt, trứng.","goodFeedback":["Dễ mang theo và sử dụng vào buổi sáng.","Có cả nguồn tinh bột và protein trong một khẩu phần."],"warnFeedback":["Có thể chưa cung cấp đủ rau và chất xơ.","Nên kết hợp thêm sữa, trái cây hoặc rau củ phù hợp."],"tip":"Có thể dùng cùng một hộp sữa và một phần trái cây để tăng sự đa dạng dinh dưỡng."},
+    {"name":"🍜 Phở / Hủ tiếu / Bún bò","calories":"450 – 600 kcal","short_description":"Nhóm món nước quen thuộc, kết hợp sợi bánh/bún, thịt và rau.","items":["Bánh phở, hủ tiếu hoặc bún","Thịt","Rau và rau thơm","Nước dùng"],"nutrition":"Cung cấp carbohydrate từ bánh hoặc sợi bún, protein từ thịt và một phần vitamin, khoáng chất từ rau ăn kèm.","goodFeedback":["Có thể kết hợp nhiều nhóm thực phẩm trong một bữa.","Rau ăn kèm giúp tăng sự đa dạng của khẩu phần."],"warnFeedback":["Nước dùng có thể chứa nhiều natri tùy cách chế biến.","Nên tăng rau và lựa chọn lượng thịt phù hợp."],"tip":"Ưu tiên thêm rau, hạn chế nước dùng quá mặn và cân đối khẩu phần theo nhu cầu cá nhân."},
+    {"name":"🥢 Bánh cuốn","calories":"400 – 500 kcal","short_description":"Món ăn mềm, dễ ăn, kết hợp bánh, thịt, giò chả và rau ăn kèm.","items":["Bánh cuốn","Nhân thịt băm","Giò chả","Chả giò","Rau thơm","Nước chấm"],"nutrition":"Cung cấp carbohydrate từ bánh, protein từ thịt và giò chả, đồng thời có thêm rau ăn kèm.","goodFeedback":["Dễ ăn và phù hợp với khẩu vị của nhiều học sinh.","Có thể kết hợp thêm rau thơm và rau sống."],"warnFeedback":["Một số thành phần chế biến sẵn có thể chứa nhiều natri.","Nên điều chỉnh lượng chả và nước chấm."],"tip":"Tăng rau ăn kèm và dùng lượng nước chấm vừa phải để bữa sáng cân đối hơn."},
+    {"name":"🍝 Nui xào","calories":"450 – 550 kcal","short_description":"Món ăn kết hợp nui, trứng, thịt bò và rau củ trong một khẩu phần.","items":["Nui","Trứng chiên","Thịt bò","Rau củ"],"nutrition":"Cung cấp carbohydrate từ nui, protein từ trứng và thịt bò, cùng chất xơ và vitamin từ rau củ.","goodFeedback":["Thành phần đa dạng, dễ kết hợp tinh bột, protein và rau củ.","Có thể thay đổi loại rau để tăng sự đa dạng."],"warnFeedback":["Nên kiểm soát lượng dầu khi chế biến.","Có thể tăng lượng rau củ để bổ sung chất xơ."],"tip":"Ưu tiên nhiều rau củ, lượng dầu vừa phải và khẩu phần thịt phù hợp."},
+    {"name":"🍛 Cơm tấm","calories":"550 – 650 kcal","short_description":"Bữa sáng giàu năng lượng với cơm tấm, thịt hoặc chả trứng và rau củ.","items":["Cơm tấm","Sườn nướng hoặc chả trứng","Mỡ hành","Dưa leo","Củ cải/dưa chua","Nước mắm chua ngọt"],"nutrition":"Cung cấp năng lượng từ cơm, protein từ thịt hoặc trứng và một phần chất xơ từ rau củ, đồ chua.","goodFeedback":["Cung cấp lượng năng lượng tương đối cao cho buổi sáng.","Có thể kết hợp cơm, protein và rau củ trong cùng khẩu phần."],"warnFeedback":["Nên cân đối lượng cơm và thịt theo nhu cầu.","Mỡ hành và nước mắm nên sử dụng vừa phải."],"tip":"Tăng rau củ, dùng lượng mỡ hành và nước mắm vừa phải để bữa sáng cân đối hơn."},
+    {"name":"🥗 Bún thịt nướng","calories":"Khoảng 500 kcal","short_description":"Món ăn đa dạng với bún, thịt nướng, rau sống, đồ chua và đậu phộng.","items":["Bún tươi","Thịt heo nướng","Chả giò (tùy khẩu phần)","Rau sống, giá đỗ, rau thơm","Dưa leo","Củ cải, cà rốt","Đậu phộng rang","Mỡ hành","Nước mắm chua ngọt"],"nutrition":"Kết hợp carbohydrate từ bún, protein từ thịt, chất xơ và vitamin từ rau củ, cùng chất béo từ đậu phộng và mỡ hành.","goodFeedback":["Thành phần phong phú, có nhiều nhóm thực phẩm.","Rau sống và đồ chua góp phần bổ sung chất xơ.","Có thể điều chỉnh khẩu phần theo nhu cầu."],"warnFeedback":["Nên kiểm soát lượng mỡ hành, đậu phộng và nước mắm.","Có thể giảm chả giò nếu khẩu phần đã có nhiều chất béo."],"tip":"Tăng rau sống, điều chỉnh lượng nước mắm và mỡ hành để bữa sáng cân đối hơn."},
 ]
 
 # Weekly nutrition data
@@ -676,192 +625,78 @@ def draw_score_ring(score):
     return fig
 
 def home_page():
-    """Home page - overview of nutrition"""
+    """Trang chủ - giới thiệu và gợi ý bữa sáng."""
     st.title("🏠 Trang Chủ - NutriScan")
-    st.markdown("**Hệ thống Dinh dưỡng Bữa Sáng cho Học sinh**")
-    
-    # User stats section
+    st.markdown("**Hệ thống Dinh dưỡng Bữa Sáng cho Học sinh THPT**")
     col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric("Cân nặng", "65 kg", "↑ 1 kg")
-    with col2:
-        st.metric("Chiều cao", "172 cm", "")
+    with col1: st.metric("Cân nặng", "65 kg", "↑ 1 kg")
+    with col2: st.metric("Chiều cao", "172 cm", "")
     with col3:
         bmi = 65 / (1.72 ** 2)
         category = get_bmi_category(bmi)
-        st.metric("BMI", f"{bmi:.1f}", category['label'])
-    with col4:
-        st.metric("Năng lượng hôm nay", "520 kcal", "-30 kcal")
-    
+        st.metric("BMI", f"{bmi:.1f}", category["label"])
+    with col4: st.metric("Năng lượng bữa sáng", "350–650 kcal", "Tham khảo")
     st.divider()
-    
-    # Featured dishes
-    st.subheader("🍽️ Các Món Ăn Gợi Ý")
-    st.markdown("---")
-    
-    cols = st.columns(3)
-    for idx, dish in enumerate(DISHES):
-        with cols[idx]:
-            # Create card container
-            st.image(dish['image'], use_column_width=True)
-            
-            # Dish name with styling
-            st.markdown(f"### {dish['name']}")
-            
-            # Score and nutrition info in columns
-            col_score, col_info = st.columns([1, 1.5])
-            with col_score:
-                fig = draw_score_ring(dish['score'])
-                st.pyplot(fig, use_container_width=True)
-                plt.close(fig)
-            
-            with col_info:
-                st.markdown(f"""
-                **{dish['calories']} kcal**
-                
-                🥛 Protein: {dish['protein']}g  
-                🌾 Carbs: {dish['carbs']}g  
-                🧈 Fat: {dish['fat']}g  
-                🥦 Fiber: {dish['fiber']}g
-                """)
-            
-            # Detail button
-            if st.button("📋 Chi tiết", key=f"detail_{idx}", use_container_width=True):
-                st.session_state.selected_dish = idx
-                st.session_state.page = "detail"
-                st.rerun()
+    st.subheader("🍽️ Gợi ý món ăn sáng cho học sinh THPT")
+    st.markdown("Bữa sáng nên đa dạng các nhóm thực phẩm, kết hợp nguồn tinh bột, protein, rau củ và trái cây phù hợp với nhu cầu năng lượng của học sinh.")
+    st.info("💡 **Lưu ý:** Lượng kcal là mức ước tính theo khẩu phần tham khảo. Giá trị thực tế thay đổi tùy nguyên liệu, khẩu phần và cách chế biến.")
+    for row_start in range(0, len(DISHES), 3):
+        cols = st.columns(3)
+        for col, idx in zip(cols, range(row_start, min(row_start + 3, len(DISHES)))):
+            dish = DISHES[idx]
+            with col:
+                summary = ", ".join(dish["items"][:4]) + ("..." if len(dish["items"]) > 4 else "")
+                card = f"""<div class="rf-card"><div style="font-size:22px;font-weight:800;color:#047857;">{dish["name"]}</div><div style="margin:8px 0;color:#374151;font-size:14px;">{dish["short_description"]}</div><div class="rf-badge rf-badge-success">🔥 {dish["calories"]}</div><div style="font-size:13px;color:#4b5563;line-height:1.6;"><b>🥘 Thành phần:</b> {summary}</div></div>"""
+                st.markdown(card, unsafe_allow_html=True)
+                if st.button("📋 Xem chi tiết", key=f"detail_{idx}", use_container_width=True):
+                    st.session_state.selected_dish = idx
+                    st.session_state.page = "detail"
+                    st.rerun()
+
 
 def dish_detail_page():
-    """Detailed view of a selected dish"""
-    if 'selected_dish' not in st.session_state:
-        st.warning("Vui lòng chọn một món ăn")
+    """Trang chi tiết món ăn."""
+    if st.session_state.get("selected_dish") is None:
+        st.warning("Vui lòng chọn một món ăn.")
         return
-    
-    if st.button("← Quay lại", use_container_width=False):
-        st.session_state.page = 'home'
+    if st.button("← Quay lại trang chủ"):
+        st.session_state.page = "home"
         st.rerun()
-    
     dish = DISHES[st.session_state.selected_dish]
-    
-    st.title(f"📋 {dish['name']}")
-    st.markdown("**Phân tích chi tiết bởi NutriScan AI**")
+    st.title(dish["name"])
+    st.markdown("**Gợi ý dinh dưỡng dành cho học sinh THPT**")
     st.markdown("---")
-    
-    # Image and score
-    col1, col2 = st.columns([1.5, 1])
-    
+    col1, col2 = st.columns([1, 1.4])
     with col1:
-        st.image(dish['image'], use_column_width=True, caption=dish['name'])
-    
+        card = f"""<div class="rf-card"><div style="font-size:28px;text-align:center;">🍽️</div><h2 style="text-align:center;margin-bottom:4px;">{dish["name"]}</h2><div style="text-align:center;font-size:24px;font-weight:800;color:#047857;">{dish["calories"]}</div><div style="text-align:center;color:#6b7280;margin-top:4px;">Năng lượng ước tính</div></div>"""
+        st.markdown(card, unsafe_allow_html=True)
     with col2:
-        st.subheader("Xếp hạng")
-        fig = draw_score_ring(dish['score'])
-        st.pyplot(fig, use_container_width=True)
-        plt.close(fig)
-    
+        st.subheader("📖 Mô tả")
+        st.write(dish["short_description"])
+        st.subheader("💪 Giá trị dinh dưỡng")
+        st.write(dish["nutrition"])
     st.markdown("---")
-    
-    # Nutritional info
-    st.subheader("📊 Thông Tin Dinh Dưỡng")
-    col1, col2, col3, col4, col5 = st.columns(5)
-    
-    with col1:
-        st.markdown(f"""
-        <div class='metric'>
-            <div style='font-size: 24px; text-align: center;'>🔥</div>
-            <div style='text-align: center; color: #047857; font-weight: 800; font-size: 18px;'>{dish['calories']}</div>
-            <div style='text-align: center; color: #6b7280; font-size: 12px; font-weight: 600;'>Năng lượng (kcal)</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown(f"""
-        <div class='metric'>
-            <div style='font-size: 24px; text-align: center;'>💪</div>
-            <div style='text-align: center; color: #047857; font-weight: 800; font-size: 18px;'>{dish['protein']}g</div>
-            <div style='text-align: center; color: #6b7280; font-size: 12px; font-weight: 600;'>Protein</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown(f"""
-        <div class='metric'>
-            <div style='font-size: 24px; text-align: center;'>🌾</div>
-            <div style='text-align: center; color: #047857; font-weight: 800; font-size: 18px;'>{dish['carbs']}g</div>
-            <div style='text-align: center; color: #6b7280; font-size: 12px; font-weight: 600;'>Carbs</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col4:
-        st.markdown(f"""
-        <div class='metric'>
-            <div style='font-size: 24px; text-align: center;'>🧈</div>
-            <div style='text-align: center; color: #047857; font-weight: 800; font-size: 18px;'>{dish['fat']}g</div>
-            <div style='text-align: center; color: #6b7280; font-size: 12px; font-weight: 600;'>Chất Béo</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col5:
-        st.markdown(f"""
-        <div class='metric'>
-            <div style='font-size: 24px; text-align: center;'>🥦</div>
-            <div style='text-align: center; color: #047857; font-weight: 800; font-size: 18px;'>{dish['fiber']}g</div>
-            <div style='text-align: center; color: #6b7280; font-size: 12px; font-weight: 600;'>Chất Xơ</div>
-        </div>
-        """, unsafe_allow_html=True)
-    
+    st.subheader("🥘 Thành phần món ăn")
+    ingredient_cols = st.columns(3)
+    for idx, item in enumerate(dish["items"]):
+        with ingredient_cols[idx % 3]:
+            st.markdown(f"""<div style="background:#ecfdf5;border:1.5px solid #a7f3d0;padding:.75rem;border-radius:.6rem;text-align:center;font-size:13px;font-weight:600;color:#047857;margin-bottom:.7rem;">{item}</div>""", unsafe_allow_html=True)
     st.markdown("---")
-    
-    # Macronutrient chart
-    st.subheader("📊 Cấu Trúc Dinh Dưỡng")
-    macro_data = pd.DataFrame({
-        'Chất Dinh Dưỡng': ['Protein', 'Carbs', 'Fat', 'Fiber'],
-        'Giá Trị': [dish['protein'], dish['carbs'], dish['fat'], dish['fiber']],
-        'Màu': ['#10b981', '#6ee7b7', '#fde68a', '#f97316']
-    })
-    fig, ax = plt.subplots(figsize=(12, 5))
-    bars = ax.bar(macro_data['Chất Dinh Dưỡng'], macro_data['Giá Trị'], color=macro_data['Màu'], edgecolor='#d1d5db', linewidth=1.5)
-    ax.set_ylabel('Grams', fontsize=12, fontweight='bold')
-    ax.set_xlabel('Nutrients', fontsize=12, fontweight='bold')
-    ax.grid(axis='y', alpha=0.3, linestyle='--')
-    ax.set_facecolor('#f9fafb')
-    for bar in bars:
-        height = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width()/2., height,
-                f'{int(height)}g',
-                ha='center', va='bottom', fontweight='bold', fontsize=11)
-    plt.tight_layout()
-    st.pyplot(fig, use_container_width=True)
-    plt.close(fig)
-    
-    st.markdown("---")
-    
-    # Ingredients
-    st.subheader("🥘 Thành Phần")
-    cols = st.columns(3)
-    for idx, item in enumerate(dish['items']):
-        with cols[idx % 3]:
-            st.markdown(f"""
-            <div style='background: #ecfdf5; border: 1.5px solid #a7f3d0; padding: 0.75rem; border-radius: 0.5rem; text-align: center; font-size: 13px; font-weight: 600; color: #047857;'>
-                {item}
-            </div>
-            """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # Feedback sections
     col1, col2 = st.columns(2)
-    
     with col1:
-        st.subheader("✅ Điểm Tốt")
-        for feedback in dish['goodFeedback']:
+        st.subheader("✅ Điểm tích cực")
+        for feedback in dish["goodFeedback"]:
             st.markdown(f"<div class='good-feedback'>✅ {feedback}</div>", unsafe_allow_html=True)
-    
     with col2:
-        st.subheader("⚠️ Cần Chú Ý")
-        for feedback in dish['warnFeedback']:
+        st.subheader("⚠️ Cần lưu ý")
+        for feedback in dish["warnFeedback"]:
             st.markdown(f"<div class='warn-feedback'>⚠️ {feedback}</div>", unsafe_allow_html=True)
+    st.markdown("---")
+    st.subheader("💡 Gợi ý lựa chọn")
+    tip = f"""<div class="rf-card" style="background:#fffbeb;border-color:#fde68a;"><div style="font-size:15px;line-height:1.7;color:#78350f;">{dish["tip"]}</div></div>"""
+    st.markdown(tip, unsafe_allow_html=True)
+    st.caption("Thông tin mang tính tham khảo giáo dục dinh dưỡng; nhu cầu năng lượng thực tế của mỗi học sinh có thể khác nhau.")
+
 
 def nutrition_history():
     """Weekly nutrition history"""
