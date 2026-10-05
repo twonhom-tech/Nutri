@@ -3,6 +3,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Wedge
 import numpy as np
+from collections import Counter
+from pathlib import Path
+import os
+import tempfile
+from PIL import Image, ImageDraw, ImageFont
+from inference_sdk import InferenceHTTPClient, InferenceConfiguration
+from streamlit.errors import StreamlitSecretNotFoundError
 
 # Page configuration
 st.set_page_config(
@@ -147,8 +154,400 @@ st.markdown("""
         border: 1.5px solid #a7f3d0;
         border-radius: 0.5rem;
     }
+
+    /* Roboflow detection cards */
+    .rf-card {
+        background: white; border-radius: 16px; padding: 18px 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+        border: 1px solid #F1F5F9; margin-bottom: 14px;
+    }
+    .rf-badge {
+        display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px;
+        border-radius: 9999px; font-size: 14px; font-weight: 600; margin-bottom: 4px;
+    }
+    .rf-badge-success { background: #DCFCE7; color: #166534; }
+    .rf-badge-info    { background: #DBEAFE; color: #1E40AF; }
+    .rf-badge-warning { background: #FEF3C7; color: #92400E; }
+    .rf-badge-danger  { background: #FEE2E2; color: #991B1B; }
+    .rda-card {
+        background: white; border-radius: 16px; padding: 18px 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+        border: 1px solid #F1F5F9; margin-bottom: 14px;
+    }
+    .rda-bar-track {
+        position: relative; height: 14px; border-radius: 9999px; background: #F1F5F9;
+        margin: 12px 0 6px; overflow: visible;
+    }
+    .rda-bar-fill {
+        height: 100%; border-radius: 9999px; background: linear-gradient(90deg, #FB923C, #F97316);
+    }
+    .rda-bar-zone {
+        position: absolute; top: -3px; bottom: -3px; background: rgba(22,163,74,0.15);
+        border-left: 2px dashed #16A34A; border-right: 2px dashed #16A34A;
+    }
+    .rda-label-row { display: flex; justify-content: space-between; font-size: 12px; color: #78716C; }
+    .rf-metric-grid {
+        display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0 6px;
+    }
+    .rf-metric-card {
+        background: linear-gradient(180deg, #FFF7ED 0%, #FFFFFF 100%);
+        border: 1px solid #FED7AA; border-radius: 12px; padding: 12px 8px; text-align: center;
+    }
+    .rf-metric-label { font-size: 12px; color: #78716C; font-weight: 500; }
+    .rf-metric-value { font-size: 20px; color: #1C1917; font-weight: 700; margin-top: 2px; }
+    .rf-source-note { font-size: 12px; color: #64748B; margin-top: 6px; }
+    @media (max-width: 640px) { .rf-metric-grid { grid-template-columns: repeat(2, 1fr); } }
 </style>
 """, unsafe_allow_html=True)
+
+ROBOFLOW_SERVER_URL = "https://serverless.roboflow.com"
+ROBOFLOW_WORKSPACE = "nckh-nan"
+ROBOFLOW_WORKFLOW_ID = "breakfast-demo-vbreakfast-demo-3-yolo11s-t1-logic"
+NUTRITION_CSV_PATH = Path(__file__).with_name("dinh_duong_thanh_phan.csv")
+ROBOFLOW_CONFIDENCE_THRESHOLD = 0.4
+DAILY_CALORIES_KCAL = {"Nam": 2820, "Nữ": 2380}
+BREAKFAST_CALORIE_RANGE = {
+    gender: (round(calories * 0.25), round(calories * 0.30))
+    for gender, calories in DAILY_CALORIES_KCAL.items()
+}
+NGUON_RDA = (
+    "Quyết định 3958/QĐ-BYT (25/12/2025, Bộ Y tế) — Hướng dẫn dinh dưỡng đối "
+    "với bữa ăn học đường. Nhu cầu năng lượng cả ngày HS THPT: Nam 2.820 kcal, "
+    "Nữ 2.380 kcal; bữa sáng chiếm 25–30% năng lượng cả ngày."
+)
+
+
+def danh_gia_khau_phan_sang(calo_do_duoc, gioi_tinh):
+    """So sánh calo bữa sáng với khuyến nghị theo giới tính.
+    Trả về: (phan_tram, muc_thap, muc_cao, trang_thai, mo_ta)
+    """
+    muc_thap, muc_cao = BREAKFAST_CALORIE_RANGE[gioi_tinh]
+    trung_binh = (muc_thap + muc_cao) / 2
+    phan_tram = calo_do_duoc / trung_binh * 100
+    if calo_do_duoc < muc_thap:
+        trang_thai = "thieu"
+        mo_ta = f"Thiếu năng lượng so với khuyến nghị (dưới {muc_thap} kcal)"
+    elif calo_do_duoc > muc_cao:
+        trang_thai = "vuot"
+        mo_ta = f"Vượt khuyến nghị (trên {muc_cao} kcal)"
+    else:
+        trang_thai = "dat"
+        mo_ta = f"Đạt khuyến nghị ({muc_thap}–{muc_cao} kcal)"
+    return phan_tram, muc_thap, muc_cao, trang_thai, mo_ta
+
+
+def get_roboflow_api_key():
+    try:
+        secret_key = st.secrets.get("ROBOFLOW_API_KEY", "")
+    except StreamlitSecretNotFoundError:
+        secret_key = ""
+    return (secret_key or os.getenv("ROBOFLOW_API_KEY", "")).strip()
+
+
+@st.cache_resource
+def load_roboflow_client(api_key):
+    if not api_key:
+        return None
+    return InferenceHTTPClient(
+        api_url=ROBOFLOW_SERVER_URL,
+        api_key=api_key,
+    ).configure(InferenceConfiguration(api_key_transport="header"))
+
+
+@st.cache_data
+def load_nutrition_table():
+    if not NUTRITION_CSV_PATH.is_file():
+        raise FileNotFoundError(
+            f"Không tìm thấy bảng dinh dưỡng: {NUTRITION_CSV_PATH.name}"
+        )
+    return pd.read_csv(NUTRITION_CSV_PATH).set_index("ma_thanh_phan")
+
+
+def run_roboflow_workflow(client, uploaded_file):
+    suffix = Path(uploaded_file.name).suffix.lower() or ".jpg"
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+            temp_file.write(uploaded_file.getbuffer())
+            temp_path = temp_file.name
+        return client.run_workflow(
+            workspace_name=ROBOFLOW_WORKSPACE,
+            workflow_id=ROBOFLOW_WORKFLOW_ID,
+            images={"image": temp_path},
+            use_cache=True,
+        )
+    finally:
+        if temp_path:
+            Path(temp_path).unlink(missing_ok=True)
+
+
+def find_roboflow_predictions(value):
+    if isinstance(value, dict):
+        for key in ("model_predictions", "predictions", "detections"):
+            predictions = value.get(key)
+            if isinstance(predictions, list):
+                return predictions
+            if isinstance(predictions, dict):
+                nested = predictions.get("predictions") or predictions.get("detections")
+                if isinstance(nested, list):
+                    return nested
+        for nested_value in value.values():
+            found = find_roboflow_predictions(nested_value)
+            if found is not None:
+                return found
+    elif isinstance(value, list):
+        for item in value:
+            found = find_roboflow_predictions(item)
+            if found is not None:
+                return found
+    return None
+
+
+def parse_roboflow_predictions(result):
+    if isinstance(result, list):
+        result = {
+            key: value
+            for item in result if isinstance(item, dict)
+            for key, value in item.items()
+        }
+    raw_predictions = find_roboflow_predictions(result) or []
+    predictions = []
+    for prediction in raw_predictions:
+        if not isinstance(prediction, dict):
+            continue
+        class_name = (
+            prediction.get("class")
+            or prediction.get("label")
+            or prediction.get("class_name")
+            or prediction.get("name")
+        )
+        if not class_name:
+            continue
+        try:
+            confidence = float(prediction.get("confidence", prediction.get("score", 0)))
+        except (TypeError, ValueError):
+            confidence = 0.0
+        if confidence < ROBOFLOW_CONFIDENCE_THRESHOLD:
+            continue
+        coordinates = {}
+        for key in ("x", "y", "width", "height"):
+            try:
+                coordinates[key] = float(prediction.get(key, 0))
+            except (TypeError, ValueError):
+                coordinates[key] = 0.0
+        predictions.append({
+            "class": str(class_name),
+            "confidence": confidence,
+            **coordinates,
+        })
+    return predictions
+
+
+def draw_roboflow_predictions(image, predictions):
+    annotated = image.convert("RGB").copy()
+    draw = ImageDraw.Draw(annotated)
+    width, height = annotated.size
+    try:
+        font = ImageFont.truetype("DejaVuSans.ttf", 16)
+    except OSError:
+        font = ImageFont.load_default()
+
+    for prediction in predictions:
+        x, y = prediction["x"], prediction["y"]
+        box_width, box_height = prediction["width"], prediction["height"]
+        x1, y1 = max(0, x - box_width / 2), max(0, y - box_height / 2)
+        x2, y2 = min(width, x + box_width / 2), min(height, y + box_height / 2)
+        label = f'{prediction["class"]} {prediction["confidence"]:.0%}'
+        draw.rectangle([x1, y1, x2, y2], outline=(0, 180, 0), width=3)
+        text_box = draw.textbbox((x1, y1), label, font=font)
+        text_width = text_box[2] - text_box[0]
+        text_height = text_box[3] - text_box[1]
+        label_y = max(0, y1 - text_height - 6)
+        draw.rectangle([x1, label_y, x1 + text_width + 8, y1], fill=(0, 150, 0))
+        draw.text((x1 + 4, label_y + 2), label, fill="white", font=font)
+    return annotated
+
+
+def calculate_detected_nutrition(nutrition_table, predictions):
+    counts = Counter(prediction["class"] for prediction in predictions)
+    details = []
+    totals = {"calo": 0.0, "protein": 0.0, "carb": 0.0, "fat": 0.0}
+    for component_code, count in counts.items():
+        if component_code not in nutrition_table.index:
+            continue
+        row = nutrition_table.loc[component_code]
+        mass = float(row["khoi_luong_mac_dinh_g"]) * count
+        ratio = mass / 100
+        detail = {
+            "ten": row["ten_thanh_phan"],
+            "ma": component_code,
+            "so_luong": count,
+            "khoi_luong": mass,
+            "calo": float(row["calo_100g"]) * ratio,
+            "protein": float(row["protein_100g"]) * ratio,
+            "carb": float(row["carb_100g"]) * ratio,
+            "fat": float(row["fat_100g"]) * ratio,
+            "nguon": row.get("nguon_so_lieu", "") if hasattr(row, "get") else "",
+        }
+        details.append(detail)
+        for nutrient in totals:
+            totals[nutrient] += detail[nutrient]
+    return counts, details, totals
+
+
+def roboflow_detection_page():
+    st.title("📷 Nhận Diện Thành Phần Món Ăn")
+    st.markdown(
+        "Roboflow Workflow dùng YOLO để phát hiện từng thành phần trong ảnh; "
+        "dinh dưỡng được cộng dồn theo bảng thành phần."
+    )
+    st.caption(
+        "Việc huấn luyện model được thực hiện riêng trên Roboflow/Colab; trang này "
+        "gửi ảnh tới Workflow đã cấu hình để nhận diện."
+    )
+    gender = st.radio("Giới tính học sinh", ["Nam", "Nữ"], horizontal=True)
+    uploaded_file = st.file_uploader(
+        "Chọn ảnh món ăn", type=["jpg", "jpeg", "png"], key="roboflow_image"
+    )
+    if uploaded_file is None:
+        return
+
+    image = Image.open(uploaded_file)
+    st.image(image, caption="Ảnh đã tải lên", use_container_width=True)
+    api_key = get_roboflow_api_key()
+    if not api_key:
+        st.warning(
+            "Chưa cấu hình ROBOFLOW_API_KEY. Thêm khóa vào Streamlit Secrets "
+            "hoặc biến môi trường để nhận diện."
+        )
+        return
+    try:
+        nutrition_table = load_nutrition_table()
+    except (FileNotFoundError, KeyError, pd.errors.ParserError) as error:
+        st.error(f"Không thể tải bảng dinh dưỡng: {error}")
+        return
+
+    if not st.button("🔍 Nhận diện & tính dinh dưỡng", type="primary"):
+        return
+    try:
+        with st.spinner("Đang gửi ảnh lên Roboflow Serverless Cloud..."):
+            result = run_roboflow_workflow(load_roboflow_client(api_key), uploaded_file)
+            predictions = parse_roboflow_predictions(result)
+    except Exception as error:
+        st.error(f"Lỗi khi gọi Roboflow Workflow: {type(error).__name__}: {error}")
+        return
+
+    with st.expander("Xem phản hồi từ Roboflow"):
+        st.json(result)
+    if not predictions:
+        st.warning(
+            f"Không phát hiện thành phần nào với độ tin cậy từ "
+            f"{ROBOFLOW_CONFIDENCE_THRESHOLD:.0%} trở lên."
+        )
+        return
+
+    st.image(
+        draw_roboflow_predictions(image, predictions),
+        caption="Các thành phần được Roboflow phát hiện",
+        use_container_width=True,
+    )
+    counts, details, totals = calculate_detected_nutrition(nutrition_table, predictions)
+
+    ten_cac_thanh_phan = ", ".join(
+        f"{c['ten']}" + (f" ×{c['so_luong']}" if c["so_luong"] > 1 else "")
+        for c in details
+    ) or "Không có thành phần khớp bảng"
+    st.markdown(f"""
+    <div class="rf-card">
+        <span class="rf-badge rf-badge-success">🍽️ Phát hiện: {ten_cac_thanh_phan}</span>
+        <div class="rf-metric-grid">
+            <div class="rf-metric-card">
+                <div class="rf-metric-label">Tổng Calo</div>
+                <div class="rf-metric-value">{totals['calo']:.0f}</div>
+            </div>
+            <div class="rf-metric-card">
+                <div class="rf-metric-label">Protein (g)</div>
+                <div class="rf-metric-value">{totals['protein']:.1f}</div>
+            </div>
+            <div class="rf-metric-card">
+                <div class="rf-metric-label">Carb (g)</div>
+                <div class="rf-metric-value">{totals['carb']:.1f}</div>
+            </div>
+            <div class="rf-metric-card">
+                <div class="rf-metric-label">Fat (g)</div>
+                <div class="rf-metric-value">{totals['fat']:.1f}</div>
+            </div>
+        </div>
+        <div class="rf-source-note">📖 Số liệu từng thành phần: Bảng TPTP Việt Nam – Viện Dinh dưỡng Quốc gia 2007</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    phan_tram, muc_thap, muc_cao, trang_thai, mo_ta = danh_gia_khau_phan_sang(totals["calo"], gender)
+    mau_badge = {"thieu": "rf-badge-warning", "dat": "rf-badge-success", "vuot": "rf-badge-danger"}[trang_thai]
+    icon_badge = {"thieu": "⬇️", "dat": "✅", "vuot": "⬆️"}[trang_thai]
+    truc_max = muc_cao * 1.4
+    vt_thap = muc_thap / truc_max * 100
+    vt_cao = muc_cao / truc_max * 100
+    vt_do_duoc = min(totals["calo"] / truc_max * 100, 100)
+    st.markdown(f"""
+    <div class="rda-card">
+        <span class="rf-badge {mau_badge}">{icon_badge} {mo_ta}</span>
+        <div class="rda-bar-track">
+            <div class="rda-bar-zone" style="left:{vt_thap:.1f}%; width:{vt_cao - vt_thap:.1f}%;"></div>
+            <div class="rda-bar-fill" style="width:{vt_do_duoc:.1f}%;"></div>
+        </div>
+        <div class="rda-label-row">
+            <span>0 kcal</span>
+            <span>Khuyến nghị: {muc_thap}–{muc_cao} kcal</span>
+        </div>
+        <div class="rf-metric-grid" style="grid-template-columns: repeat(2, 1fr);">
+            <div class="rf-metric-card">
+                <div class="rf-metric-label">Đo được</div>
+                <div class="rf-metric-value">{totals['calo']:.0f} kcal</div>
+            </div>
+            <div class="rf-metric-card">
+                <div class="rf-metric-label">% so với mức TB khuyến nghị</div>
+                <div class="rf-metric-value">{phan_tram:.0f}%</div>
+            </div>
+        </div>
+        <div class="rf-source-note">📖 Ngưỡng khuyến nghị bữa sáng ({gender}): {muc_thap}–{muc_cao} kcal. {NGUON_RDA}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if details:
+        details_df = pd.DataFrame(details)[
+            ["ten", "so_luong", "khoi_luong", "calo", "protein", "carb", "fat"]
+        ]
+        details_df.columns = [
+            "Thành phần", "Số lượng", "Khối lượng (g)", "Calo",
+            "Protein (g)", "Carb (g)", "Fat (g)",
+        ]
+        st.dataframe(
+            details_df.style.format({
+                "Khối lượng (g)": "{:.0f}",
+                "Calo": "{:.0f}",
+                "Protein (g)": "{:.1f}",
+                "Carb (g)": "{:.1f}",
+                "Fat (g)": "{:.1f}",
+            }),
+            use_container_width=True,
+            hide_index=True,
+        )
+    unknown_classes = set(counts) - set(nutrition_table.index)
+    if unknown_classes:
+        st.warning(
+            "Các lớp chưa có trong bảng dinh dưỡng nên chưa được tính: "
+            + ", ".join(sorted(unknown_classes))
+        )
+    confidence_df = pd.DataFrame([
+        {"Thành phần": item["class"], "Độ tin cậy": item["confidence"]}
+        for item in predictions
+    ])
+    st.dataframe(
+        confidence_df.style.format({"Độ tin cậy": "{:.1%}"}),
+        use_container_width=True,
+        hide_index=True,
+    )
 
 # Vietnamese dishes database
 DISHES = [
@@ -900,24 +1299,7 @@ def main():
         st.session_state.page = 'home'
         home_page()
     elif selected == "Nhận diện món ăn":
-        st.title("📷 Nhận Diện Món Ăn")
-        st.markdown("**Công nghệ AI nhận diện dinh dưỡng từ ảnh**")
-        st.markdown("---")
-        st.info("🚀 Chức năng nhận diện AI sẽ sớm được cập nhật với khả năng phân tích ảnh thực tế!")
-        uploaded_file = st.file_uploader("📸 Tải lên ảnh món ăn", type=['jpg', 'jpeg', 'png'])
-        if uploaded_file:
-            col1, col2 = st.columns([1, 1])
-            with col1:
-                st.image(uploaded_file, caption="Ảnh đã tải", use_column_width=True)
-            with col2:
-                st.markdown("""
-                **Thông tin được phân tích:**
-                - 📊 Cấu trúc dinh dưỡng
-                - 🔥 Tổng năng lượng
-                - 💪 Hàm lượng protein
-                - 🥦 Chất xơ và vitamin
-                - ⚠️ Lời khuyên cá nhân hóa
-                """)
+        roboflow_detection_page()
     elif selected == "Lịch sử dinh dưỡng":
         nutrition_history()
     elif selected == "Mục tiêu cá nhân":
