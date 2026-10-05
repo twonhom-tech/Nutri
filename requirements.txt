@@ -3,3 +3,4 @@ pandas
 pillow
 matplotlib
 inference-sdk
+opencv-python-headless
