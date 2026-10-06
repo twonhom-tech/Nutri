@@ -1,8 +1,5 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.patches import Wedge
-import numpy as np
 from collections import Counter
 from pathlib import Path
 import os
@@ -197,6 +194,21 @@ st.markdown("""
     .rf-metric-value { font-size: 20px; color: #1C1917; font-weight: 700; margin-top: 2px; }
     .rf-source-note { font-size: 12px; color: #64748B; margin-top: 6px; }
     @media (max-width: 640px) { .rf-metric-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    /* Dish suggestion cards */
+    .dish-card {
+        background: white; border: 1.5px solid #a7f3d0; border-radius: 16px;
+        padding: 20px 16px; text-align: center;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 16px; min-height: 210px;
+    }
+    .dish-icon { font-size: 44px; display: block; margin-bottom: 10px; }
+    .dish-name { font-size: 15px; font-weight: 700; color: #047857; margin-bottom: 6px; }
+    .dish-cal {
+        font-size: 12px; font-weight: 700; color: #ea580c;
+        background: #fff7ed; border: 1px solid #fed7aa;
+        padding: 2px 10px; border-radius: 9999px; display: inline-block; margin-bottom: 10px;
+    }
+    .dish-desc { font-size: 12px; color: #6b7280; line-height: 1.6; text-align: left; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -660,104 +672,66 @@ def roboflow_detection_page():
         hide_index=True,
     )
 
-# Vietnamese dishes database
+# Dishes for home page suggestion cards
 DISHES = [
     {
-        'name': 'Cơm tấm sườn bì chả',
-        'image': 'https://images.unsplash.com/photo-1569050467447-ce54b3bbc37d?w=600&h=400&fit=crop&auto=format',
-        'calories': 520,
-        'protein': 28,
-        'carbs': 58,
-        'fat': 18,
-        'fiber': 3.2,
-        'vitamins': 72,
-        'score': 74,
-        'items': ['Cơm tấm (200g)', 'Sườn nướng (80g)', 'Bì heo (30g)', 'Chả trứng (40g)', 'Dưa leo (50g)', 'Cà chua (30g)'],
-        'goodFeedback': [
-            'Cung cấp đủ protein từ thịt sườn và chả.',
-            'Có rau tươi kèm theo (dưa leo, cà chua).',
-            'Năng lượng phù hợp cho buổi học sáng.',
-        ],
-        'warnFeedback': [
-            'Hàm lượng chất xơ còn thấp — nên thêm rau xanh.',
-            'Chất béo từ bì heo khá cao, nên ăn vừa phải.',
-        ],
+        'icon': '🥖',
+        'name': 'Bánh Mì',
+        'calories': '400–600',
+        'desc': 'Nhân đa dạng: thịt, trứng, chả cá kèm rau & sốt. Tinh bột cao, cung cấp năng lượng tốt cho buổi sáng.',
     },
     {
-        'name': 'Bánh mì thịt nguội',
-        'image': 'https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=600&h=400&fit=crop&auto=format',
-        'calories': 380,
-        'protein': 18,
-        'carbs': 45,
-        'fat': 14,
-        'fiber': 2.1,
-        'vitamins': 55,
-        'score': 62,
-        'items': ['Bánh mì (100g)', 'Thịt nguội (60g)', 'Pate (20g)', 'Dưa leo (40g)', 'Hành ngò (10g)', 'Tương ớt (10g)'],
-        'goodFeedback': [
-            'Dễ ăn, tiện lợi cho buổi sáng.',
-            'Có rau thơm và dưa leo.',
-        ],
-        'warnFeedback': [
-            'Thiếu chất xơ và vitamin đáng kể.',
-            'Pate và thịt nguội chứa nhiều natri — không nên ăn mỗi ngày.',
-            'Nên bổ sung thêm 1 ly sữa hoặc trái cây.',
-        ],
+        'icon': '🍙',
+        'name': 'Xôi Mặn',
+        'calories': '350–450',
+        'desc': 'Gạo nếp dẻo thơm kèm pate, chả lụa, chà bông, trứng cút, lạp xưởng. No lâu, giàu tinh bột và protein.',
     },
     {
-        'name': 'Phở bò tái chín',
-        'image': 'https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?w=600&h=400&fit=crop&auto=format',
-        'calories': 450,
-        'protein': 32,
-        'carbs': 52,
-        'fat': 10,
-        'fiber': 4.5,
-        'vitamins': 85,
-        'score': 88,
-        'items': ['Bánh phở (150g)', 'Thịt bò tái (60g)', 'Thịt bò chín (40g)', 'Giá đỗ (50g)', 'Hành lá (15g)', 'Rau thơm (20g)'],
-        'goodFeedback': [
-            'Protein cao, chất béo thấp — rất cân bằng.',
-            'Giàu chất xơ từ rau giá và rau thơm.',
-            'Đạt chuẩn dinh dưỡng bữa sáng học sinh.',
-        ],
-        'warnFeedback': [
-            'Nước dùng có thể chứa nhiều natri — không uống hết nước.',
-        ],
+        'icon': '🥟',
+        'name': 'Bánh Bao',
+        'calories': '~350',
+        'desc': 'Vỏ bánh mềm, nhân thịt băm và trứng cút. Đơn giản, tiện lợi, phù hợp bữa sáng nhanh.',
     },
-]
-
-# Weekly nutrition data
-WEEKLY = [
-    {'day': 'T2', 'calo': 480, 'target': 500},
-    {'day': 'T3', 'calo': 510, 'target': 500},
-    {'day': 'T4', 'calo': 390, 'target': 500},
-    {'day': 'T5', 'calo': 520, 'target': 500},
-    {'day': 'T6', 'calo': 450, 'target': 500},
-    {'day': 'T7', 'calo': 370, 'target': 500},
-    {'day': 'CN', 'calo': 490, 'target': 500},
+    {
+        'icon': '🍜',
+        'name': 'Phở / Hủ Tiếu / Bún Bò',
+        'calories': '450–600',
+        'desc': 'Sợi bánh + thịt các loại + rau thơm, giá đỗ. Món nước giàu protein, dễ tiêu hóa, ít béo.',
+    },
+    {
+        'icon': '🥙',
+        'name': 'Bánh Cuốn',
+        'calories': '400–500',
+        'desc': 'Bánh tráng hấp mềm cuộn với giò chả, chả giò, nhân thịt băm. Nhẹ bụng, vừa miệng.',
+    },
+    {
+        'icon': '🍝',
+        'name': 'Nui Xào',
+        'calories': '450–550',
+        'desc': 'Nui, trứng chiên, thịt bò, rau củ xào chung. Đơn giản, đủ chất, nhanh chuẩn bị.',
+    },
+    {
+        'icon': '🍛',
+        'name': 'Cơm Tấm',
+        'calories': '550–650',
+        'desc': 'Cơm tấm, sườn nướng / chả trứng, mỡ hành, đồ chua (dưa leo, củ cải), nước mắm chua ngọt.',
+    },
+    {
+        'icon': '🍖',
+        'name': 'Bún Thịt Nướng',
+        'calories': '~500',
+        'desc': 'Bún tươi, thịt heo nướng thơm, chả giò, rau sống, dưa chua, đậu phộng rang, mỡ hành.',
+    },
 ]
 
 # Navigation
 NAV = [
     {'icon': '🏠', 'label': 'Trang chủ'},
     {'icon': '📷', 'label': 'Nhận diện món ăn'},
-    {'icon': '📊', 'label': 'Lịch sử dinh dưỡng'},
-    {'icon': '🎯', 'label': 'Mục tiêu cá nhân'},
     {'icon': '📚', 'label': 'Kiến thức dinh dưỡng'},
-    {'icon': '⚙️', 'label': 'Cài đặt'},
 ]
 
-def get_score_color(score):
-    """Get color based on nutrition score"""
-    if score >= 80:
-        return '#047857'  # green
-    elif score >= 60:
-        return '#10b981'  # lighter green
-    else:
-        return '#f97316'  # orange
-
 def get_bmi_category(bmi):
-    """Get BMI category and color"""
     if bmi < 18.5:
         return {'label': 'Thiếu cân', 'color': '#f97316'}
     elif bmi < 23:
@@ -767,33 +741,12 @@ def get_bmi_category(bmi):
     else:
         return {'label': 'Béo phì', 'color': '#ef4444'}
 
-def draw_score_ring(score):
-    """Draw a circular nutrition score ring"""
-    fig, ax = plt.subplots(figsize=(4, 4))
-    color = get_score_color(score)
-
-    # Draw the pie chart as a donut
-    sizes = [score, 100 - score]
-    colors = [color, '#e5e7eb']
-    ax.pie(sizes, colors=colors, startangle=90, counterclock=False,
-           wedgeprops=dict(width=0.5, edgecolor='white'))
-
-    # Add text in center
-    ax.text(0, 0, f'{score}\n/ 100', ha='center', va='center',
-            fontsize=32, fontweight='bold', color=color)
-
-    ax.set_aspect('equal')
-    plt.tight_layout()
-    return fig
 
 def home_page():
-    """Home page - overview of nutrition"""
     st.title("🏠 Trang Chủ - NutriScan")
     st.markdown("**Hệ thống Dinh dưỡng Bữa Sáng cho Học sinh**")
 
-    # User stats section
     col1, col2, col3, col4 = st.columns(4)
-
     with col1:
         st.metric("Cân nặng", "65 kg", "↑ 1 kg")
     with col2:
@@ -807,321 +760,22 @@ def home_page():
 
     st.divider()
 
-    # Featured dishes
     st.subheader("🍽️ Các Món Ăn Gợi Ý")
-    st.markdown("---")
+    st.caption("Các món ăn sáng phổ biến của học sinh — dùng trang Nhận diện để tính dinh dưỡng chính xác")
 
-    cols = st.columns(3)
-    for idx, dish in enumerate(DISHES):
-        with cols[idx]:
-            # Create card container
-            st.image(dish['image'], use_column_width=True)
-
-            # Dish name with styling
-            st.markdown(f"### {dish['name']}")
-
-            # Score and nutrition info in columns
-            col_score, col_info = st.columns([1, 1.5])
-            with col_score:
-                fig = draw_score_ring(dish['score'])
-                st.pyplot(fig, use_container_width=True)
-                plt.close(fig)
-
-            with col_info:
+    for row_start in range(0, len(DISHES), 3):
+        row_dishes = DISHES[row_start:row_start + 3]
+        cols = st.columns(3)
+        for col, dish in zip(cols, row_dishes):
+            with col:
                 st.markdown(f"""
-                **{dish['calories']} kcal**
-
-                🥛 Protein: {dish['protein']}g
-                🌾 Carbs: {dish['carbs']}g
-                🧈 Fat: {dish['fat']}g
-                🥦 Fiber: {dish['fiber']}g
-                """)
-
-            # Detail button
-            if st.button("📋 Chi tiết", key=f"detail_{idx}", use_container_width=True):
-                st.session_state.selected_dish = idx
-                st.session_state.page = "detail"
-                st.rerun()
-
-def dish_detail_page():
-    """Detailed view of a selected dish"""
-    if 'selected_dish' not in st.session_state:
-        st.warning("Vui lòng chọn một món ăn")
-        return
-
-    if st.button("← Quay lại", use_container_width=False):
-        st.session_state.page = 'home'
-        st.rerun()
-
-    dish = DISHES[st.session_state.selected_dish]
-
-    st.title(f"📋 {dish['name']}")
-    st.markdown("**Phân tích chi tiết bởi NutriScan AI**")
-    st.markdown("---")
-
-    # Image and score
-    col1, col2 = st.columns([1.5, 1])
-
-    with col1:
-        st.image(dish['image'], use_column_width=True, caption=dish['name'])
-
-    with col2:
-        st.subheader("Xếp hạng")
-        fig = draw_score_ring(dish['score'])
-        st.pyplot(fig, use_container_width=True)
-        plt.close(fig)
-
-    st.markdown("---")
-
-    # Nutritional info
-    st.subheader("📊 Thông Tin Dinh Dưỡng")
-    col1, col2, col3, col4, col5 = st.columns(5)
-
-    with col1:
-        st.markdown(f"""
-        <div class='metric'>
-            <div style='font-size: 24px; text-align: center;'>🔥</div>
-            <div style='text-align: center; color: #047857; font-weight: 800; font-size: 18px;'>{dish['calories']}</div>
-            <div style='text-align: center; color: #6b7280; font-size: 12px; font-weight: 600;'>Năng lượng (kcal)</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col2:
-        st.markdown(f"""
-        <div class='metric'>
-            <div style='font-size: 24px; text-align: center;'>💪</div>
-            <div style='text-align: center; color: #047857; font-weight: 800; font-size: 18px;'>{dish['protein']}g</div>
-            <div style='text-align: center; color: #6b7280; font-size: 12px; font-weight: 600;'>Protein</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col3:
-        st.markdown(f"""
-        <div class='metric'>
-            <div style='font-size: 24px; text-align: center;'>🌾</div>
-            <div style='text-align: center; color: #047857; font-weight: 800; font-size: 18px;'>{dish['carbs']}g</div>
-            <div style='text-align: center; color: #6b7280; font-size: 12px; font-weight: 600;'>Carbs</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col4:
-        st.markdown(f"""
-        <div class='metric'>
-            <div style='font-size: 24px; text-align: center;'>🧈</div>
-            <div style='text-align: center; color: #047857; font-weight: 800; font-size: 18px;'>{dish['fat']}g</div>
-            <div style='text-align: center; color: #6b7280; font-size: 12px; font-weight: 600;'>Chất Béo</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col5:
-        st.markdown(f"""
-        <div class='metric'>
-            <div style='font-size: 24px; text-align: center;'>🥦</div>
-            <div style='text-align: center; color: #047857; font-weight: 800; font-size: 18px;'>{dish['fiber']}g</div>
-            <div style='text-align: center; color: #6b7280; font-size: 12px; font-weight: 600;'>Chất Xơ</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("---")
-
-    # Macronutrient chart
-    st.subheader("📊 Cấu Trúc Dinh Dưỡng")
-    macro_data = pd.DataFrame({
-        'Chất Dinh Dưỡng': ['Protein', 'Carbs', 'Fat', 'Fiber'],
-        'Giá Trị': [dish['protein'], dish['carbs'], dish['fat'], dish['fiber']],
-        'Màu': ['#10b981', '#6ee7b7', '#fde68a', '#f97316']
-    })
-    fig, ax = plt.subplots(figsize=(12, 5))
-    bars = ax.bar(macro_data['Chất Dinh Dưỡng'], macro_data['Giá Trị'], color=macro_data['Màu'], edgecolor='#d1d5db', linewidth=1.5)
-    ax.set_ylabel('Grams', fontsize=12, fontweight='bold')
-    ax.set_xlabel('Nutrients', fontsize=12, fontweight='bold')
-    ax.grid(axis='y', alpha=0.3, linestyle='--')
-    ax.set_facecolor('#f9fafb')
-    for bar in bars:
-        height = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width()/2., height,
-                f'{int(height)}g',
-                ha='center', va='bottom', fontweight='bold', fontsize=11)
-    plt.tight_layout()
-    st.pyplot(fig, use_container_width=True)
-    plt.close(fig)
-
-    st.markdown("---")
-
-    # Ingredients
-    st.subheader("🥘 Thành Phần")
-    cols = st.columns(3)
-    for idx, item in enumerate(dish['items']):
-        with cols[idx % 3]:
-            st.markdown(f"""
-            <div style='background: #ecfdf5; border: 1.5px solid #a7f3d0; padding: 0.75rem; border-radius: 0.5rem; text-align: center; font-size: 13px; font-weight: 600; color: #047857;'>
-                {item}
-            </div>
-            """, unsafe_allow_html=True)
-
-    st.markdown("---")
-
-    # Feedback sections
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.subheader("✅ Điểm Tốt")
-        for feedback in dish['goodFeedback']:
-            st.markdown(f"<div class='good-feedback'>✅ {feedback}</div>", unsafe_allow_html=True)
-
-    with col2:
-        st.subheader("⚠️ Cần Chú Ý")
-        for feedback in dish['warnFeedback']:
-            st.markdown(f"<div class='warn-feedback'>⚠️ {feedback}</div>", unsafe_allow_html=True)
-
-def nutrition_history():
-    """Weekly nutrition history"""
-    st.title("📊 Lịch Sử Dinh Dưỡng")
-    st.markdown("**Theo dõi lượng calo hàng tuần**")
-    st.markdown("---")
-
-    df = pd.DataFrame(WEEKLY)
-
-    # Summary stats
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        avg_calo = df['calo'].mean()
-        st.metric("Trung bình Calo", f"{avg_calo:.0f}", "kcal/ngày")
-    with col2:
-        max_calo = df['calo'].max()
-        st.metric("Cao nhất", f"{max_calo}", "kcal")
-    with col3:
-        min_calo = df['calo'].min()
-        st.metric("Thấp nhất", f"{min_calo}", "kcal")
-    with col4:
-        target = df['target'].iloc[0]
-        achieved = len(df[df['calo'] >= df['target']])
-        st.metric("Đạt mục tiêu", f"{achieved}/7", "ngày")
-
-    st.markdown("---")
-
-    # Bar chart with better styling
-    st.subheader("📈 Biểu Đồ Calo Tuần Này")
-    fig, ax = plt.subplots(figsize=(14, 6))
-    x = np.arange(len(df))
-    width = 0.35
-
-    bars1 = ax.bar(x - width/2, df['calo'], width, label='Thực tế',
-                   color=['#10b981' if v >= t else '#f97316' for v, t in zip(df['calo'], df['target'])],
-                   edgecolor='#d1d5db', linewidth=1.5)
-    bars2 = ax.bar(x + width/2, df['target'], width, label='Mục tiêu',
-                   color='#d1d5db', edgecolor='#9ca3af', linewidth=1.5, alpha=0.7)
-
-    ax.set_xlabel('Ngày', fontsize=12, fontweight='bold')
-    ax.set_ylabel('Calories (kcal)', fontsize=12, fontweight='bold')
-    ax.set_title('Lượng Calo - Tuần Này', fontsize=14, fontweight='bold', color='#047857')
-    ax.set_xticks(x)
-    ax.set_xticklabels(df['day'], fontsize=11, fontweight='bold')
-    ax.legend(fontsize=11, loc='upper left')
-    ax.grid(axis='y', alpha=0.3, linestyle='--')
-    ax.set_facecolor('#f9fafb')
-
-    # Add value labels on bars
-    for bar in bars1:
-        height = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width()/2., height,
-                f'{int(height)}', ha='center', va='bottom', fontsize=9, fontweight='bold')
-
-    plt.tight_layout()
-    st.pyplot(fig, use_container_width=True)
-    plt.close(fig)
-
-    st.markdown("---")
-
-    # Table view with styling
-    st.subheader("📋 Chi Tiết Theo Ngày")
-    df_display = df.copy()
-    df_display['Trạng Thái'] = df_display.apply(
-        lambda row: '✅ Đạt' if row['calo'] >= row['target'] else '❌ Chưa đạt',
-        axis=1
-    )
-    st.dataframe(df_display[['day', 'calo', 'target', 'Trạng Thái']],
-                 use_container_width=True, hide_index=True)
-
-def personal_goals():
-    """Personal nutrition goals"""
-    st.title("🎯 Mục Tiêu Cá Nhân")
-    st.markdown("**Thiết lập và theo dõi mục tiêu dinh dưỡng của bạn**")
-    st.markdown("---")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.subheader("⚙️ Mục Tiêu Hiện Tại")
-        st.markdown("Điều chỉnh các mục tiêu dinh dưỡng hàng ngày:")
-
-        daily_calories = st.slider("🔥 Calo mỗi ngày (kcal)", 1800, 3000, 2400, 50)
-        st.caption("Khuyến cáo: 2400-2600 kcal cho học sinh THPT")
-
-        protein_goal = st.slider("💪 Protein (g/ngày)", 40, 150, 80, 5)
-        st.caption("Khuyến cáo: 70-80g mỗi ngày")
-
-        carbs_goal = st.slider("🌾 Carbohydrate (g/ngày)", 100, 400, 250, 10)
-        st.caption("Khuyến cáo: 250-300g mỗi ngày")
-
-        fat_goal = st.slider("🧈 Chất Béo (g/ngày)", 30, 120, 70, 5)
-        st.caption("Khuyến cáo: 60-75g mỗi ngày")
-
-    with col2:
-        st.subheader("📊 Thống Kê Hôm Nay")
-        st.markdown("Tiến độ dinh dưỡng của bạn:")
-
-        current_calories = 520
-        current_protein = 28
-        current_carbs = 58
-        current_fat = 18
-
-        # Create progress bars with styling
-        st.markdown(f"""
-        <div style='background: #ecfdf5; border: 1.5px solid #a7f3d0; padding: 1rem; border-radius: 0.75rem; margin-bottom: 0.75rem;'>
-            <div style='display: flex; justify-content: space-between; margin-bottom: 0.5rem;'>
-                <span style='font-weight: 600; color: #047857;'>🔥 Calo</span>
-                <span style='font-weight: 600; color: #047857;'>{current_calories}/{daily_calories}</span>
-            </div>
-            <div style='background: #d1d5db; border-radius: 0.5rem; height: 8px; overflow: hidden;'>
-                <div style='background: #10b981; height: 100%; width: {(current_calories/daily_calories)*100}%;'></div>
-            </div>
-            <div style='text-align: right; font-size: 12px; color: #6b7280; margin-top: 0.25rem;'>{(current_calories/daily_calories)*100:.1f}%</div>
-        </div>
-
-        <div style='background: #ecfdf5; border: 1.5px solid #a7f3d0; padding: 1rem; border-radius: 0.75rem; margin-bottom: 0.75rem;'>
-            <div style='display: flex; justify-content: space-between; margin-bottom: 0.5rem;'>
-                <span style='font-weight: 600; color: #047857;'>💪 Protein</span>
-                <span style='font-weight: 600; color: #047857;'>{current_protein}/{protein_goal}g</span>
-            </div>
-            <div style='background: #d1d5db; border-radius: 0.5rem; height: 8px; overflow: hidden;'>
-                <div style='background: #10b981; height: 100%; width: {(current_protein/protein_goal)*100}%;'></div>
-            </div>
-            <div style='text-align: right; font-size: 12px; color: #6b7280; margin-top: 0.25rem;'>{(current_protein/protein_goal)*100:.1f}%</div>
-        </div>
-
-        <div style='background: #ecfdf5; border: 1.5px solid #a7f3d0; padding: 1rem; border-radius: 0.75rem; margin-bottom: 0.75rem;'>
-            <div style='display: flex; justify-content: space-between; margin-bottom: 0.5rem;'>
-                <span style='font-weight: 600; color: #047857;'>🌾 Carbs</span>
-                <span style='font-weight: 600; color: #047857;'>{current_carbs}/{carbs_goal}g</span>
-            </div>
-            <div style='background: #d1d5db; border-radius: 0.5rem; height: 8px; overflow: hidden;'>
-                <div style='background: #10b981; height: 100%; width: {(current_carbs/carbs_goal)*100}%;'></div>
-            </div>
-            <div style='text-align: right; font-size: 12px; color: #6b7280; margin-top: 0.25rem;'>{(current_carbs/carbs_goal)*100:.1f}%</div>
-        </div>
-
-        <div style='background: #ecfdf5; border: 1.5px solid #a7f3d0; padding: 1rem; border-radius: 0.75rem;'>
-            <div style='display: flex; justify-content: space-between; margin-bottom: 0.5rem;'>
-                <span style='font-weight: 600; color: #047857;'>🧈 Chất Béo</span>
-                <span style='font-weight: 600; color: #047857;'>{current_fat}/{fat_goal}g</span>
-            </div>
-            <div style='background: #d1d5db; border-radius: 0.5rem; height: 8px; overflow: hidden;'>
-                <div style='background: #10b981; height: 100%; width: {(current_fat/fat_goal)*100}%;'></div>
-            </div>
-            <div style='text-align: right; font-size: 12px; color: #6b7280; margin-top: 0.25rem;'>{(current_fat/fat_goal)*100:.1f}%</div>
-        </div>
-        """, unsafe_allow_html=True)
+<div class="dish-card">
+    <div class="dish-icon">{dish['icon']}</div>
+    <div class="dish-name">{dish['name']}</div>
+    <div class="dish-cal">🔥 {dish['calories']} kcal</div>
+    <div class="dish-desc">{dish['desc']}</div>
+</div>
+""", unsafe_allow_html=True)
 
 def nutrition_knowledge():
     """Nutrition education"""
@@ -1197,64 +851,6 @@ def nutrition_knowledge():
         - **Tác động:** Kích hoạt trao đổi chất tốt nhất trong ngày
         - **Ưu điểm:** Tăng khả năng tập trung, tránh quên học
         """)
-
-def settings_page():
-    """Settings and preferences"""
-    st.title("⚙️ Cài Đặt")
-    st.markdown("**Quản lý hồ sơ và tùy chọn của bạn**")
-    st.markdown("---")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.subheader("👤 Thông Tin Cá Nhân")
-        name = st.text_input("Tên", value="Học sinh", key="name_input")
-        age = st.number_input("Tuổi", 10, 100, 15, key="age_input")
-        gender = st.radio("Giới tính", ("Nam", "Nữ"), key="gender_input")
-        height = st.number_input("Chiều cao (cm)", 100, 220, 172, key="height_input")
-        weight = st.number_input("Cân nặng (kg)", 30, 200, 65, key="weight_input")
-
-        if height and weight:
-            bmi = weight / ((height/100) ** 2)
-            category = get_bmi_category(bmi)
-            st.markdown(f"""
-            <div style='background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 2px solid #{category['color'].replace('#', '')}; padding: 1rem; border-radius: 0.75rem; margin-top: 1rem;'>
-                <div style='text-align: center;'>
-                    <div style='color: #6b7280; font-size: 13px; font-weight: 600;'>Chỉ số BMI của bạn</div>
-                    <div style='color: #047857; font-size: 32px; font-weight: 800; margin: 0.5rem 0;'>{bmi:.1f}</div>
-                    <div style='background: {category['color']}; color: white; padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: 600; display: inline-block;'>{category['label']}</div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-    with col2:
-        st.subheader("🎨 Tùy Chọn Hiển Thị")
-        theme = st.selectbox("Chủ đề", ["Sáng (Mặc định)", "Tối"], key="theme_input")
-        language = st.selectbox("Ngôn ngữ", ["Tiếng Việt 🇻🇳", "English 🇬🇧", "中文 🇨🇳"], key="language_input")
-        notifications = st.checkbox("Bật thông báo nhắc nhở", value=True, key="notification_input")
-        data_sharing = st.checkbox("Cho phép chia sẻ dữ liệu (ẩn danh) để cải thiện ứng dụng", value=False, key="sharing_input")
-
-        st.markdown("---")
-        st.subheader("📋 Quản Lý Dữ Liệu")
-        col_export, col_reset = st.columns(2)
-
-        with col_export:
-            if st.button("📥 Xuất Dữ Liệu", use_container_width=True):
-                st.success("✅ Dữ liệu của bạn sẽ được tải xuống dưới dạng CSV")
-
-        with col_reset:
-            if st.button("🔄 Đặt Lại", use_container_width=True):
-                st.warning("⚠️ Hãy chắc chắn - hành động này không thể hoàn tác!")
-
-    st.markdown("---")
-
-    # Save settings
-    col_save, col_info = st.columns([1, 3])
-    with col_save:
-        if st.button("💾 Lưu Cài Đặt", use_container_width=True):
-            st.success("✅ Cài đặt của bạn đã được lưu thành công!")
-    with col_info:
-        st.caption("Cài đặt sẽ tự động lưu khi bạn thay đổi")
 
 # Main app structure
 def main():
@@ -1411,21 +1007,8 @@ def main():
         home_page()
     elif selected == "Nhận diện món ăn":
         roboflow_detection_page()
-    elif selected == "Lịch sử dinh dưỡng":
-        nutrition_history()
-    elif selected == "Mục tiêu cá nhân":
-        personal_goals()
     elif selected == "Kiến thức dinh dưỡng":
         nutrition_knowledge()
-    elif selected == "Cài đặt":
-        settings_page()
-
-    # Check if detail page should be shown
-    if st.session_state.page == 'detail':
-        if st.button("← Quay lại trang chủ", key="back_button"):
-            st.session_state.page = 'home'
-            st.rerun()
-        dish_detail_page()
 
 if __name__ == "__main__":
     main()
