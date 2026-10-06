@@ -282,19 +282,21 @@ def load_nutrition_table():
 
 
 def calculate_detected_nutrition(nutrition_table, predictions):
-    """Tính dinh dưỡng CHỈ từ những thành phần Roboflow thực sự phát hiện."""
+    """Tính dinh dưỡng CHỈ từ những thành phần Roboflow thực sự phát hiện.
+    Mỗi lớp chỉ tính 1 phần dù xuất hiện nhiều khung (bbox) trong ảnh."""
+    seen_classes = dict.fromkeys(p["class"] for p in predictions)  # unique, preserve order
     counts = Counter(p["class"] for p in predictions)
     details = []
     totals = {"calo": 0.0, "protein": 0.0, "carb": 0.0, "fat": 0.0}
-    for code, count in counts.items():
+    for code in seen_classes:
         if code not in nutrition_table.index:
             continue
         row = nutrition_table.loc[code]
-        mass = float(row["khoi_luong_mac_dinh_g"]) * count
+        mass = float(row["khoi_luong_mac_dinh_g"])  # luôn 1 phần
         ratio = mass / 100
         detail = {
             "ten": row["ten_thanh_phan"],
-            "so_luong": count,
+            "so_khung": counts[code],  # số bbox để tham khảo
             "khoi_luong": mass,
             "calo": float(row["calo_100g"]) * ratio,
             "protein": float(row["protein_100g"]) * ratio,
@@ -464,13 +466,13 @@ def roboflow_detection_page():
 
     details, totals, unmatched = calculate_detected_nutrition(nutrition_table, predictions)
 
-    ten_phat_hien = ", ".join(
-        d["ten"] + (f" ×{d['so_luong']}" if d["so_luong"] > 1 else "")
-        for d in details
-    ) or "Chưa khớp được thành phần nào trong bảng"
+    ten_list = [d["ten"] for d in details]
+    ten_phat_hien = ", ".join(ten_list) if ten_list else "Chưa khớp được thành phần nào trong bảng"
     st.markdown(f"""
     <div class="rf-card">
-        <span class="rf-badge rf-badge-success">🍽️ Phát hiện: {ten_phat_hien}</span>
+        <div style="font-size:1.15rem; font-weight:700; margin-bottom:0.5rem;">
+            🍽️ Món nhận diện: {ten_phat_hien}
+        </div>
         <div class="rf-metric-grid">
             <div class="rf-metric-card">
                 <div class="rf-metric-label">Tổng Calo</div>
@@ -489,17 +491,17 @@ def roboflow_detection_page():
                 <div class="rf-metric-value">{totals['fat']:.1f}</div>
             </div>
         </div>
-        <div class="rf-source-note">📖 {NGUON_TU_DO}</div>
+        <div class="rf-source-note">📖 {NGUON_TU_DO} — mỗi thành phần tính 1 phần chuẩn</div>
     </div>
     """, unsafe_allow_html=True)
 
     if details:
         st.subheader("📋 Thành phần nhận diện được")
         details_df = pd.DataFrame(details)[
-            ["ten", "so_luong", "khoi_luong", "calo", "protein", "carb", "fat"]
+            ["ten", "so_khung", "khoi_luong", "calo", "protein", "carb", "fat"]
         ]
         details_df.columns = [
-            "Thành phần", "Số lần", "Khối lượng (g)", "Calo",
+            "Tên thành phần", "Số khung phát hiện", "Khối lượng (g)", "Calo",
             "Protein (g)", "Carb (g)", "Fat (g)",
         ]
         st.dataframe(
