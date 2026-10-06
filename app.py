@@ -281,6 +281,21 @@ def load_nutrition_table():
     return pd.read_csv(NUTRITION_CSV_PATH).set_index("ma_thanh_phan")
 
 
+@st.cache_data
+def load_mon_name_map():
+    """Trả về dict {lop_nhan_dien_mon: ten_mon} để lấy tên món từ class Roboflow."""
+    if not MON_CSV_PATH.is_file():
+        return {}
+    df = pd.read_csv(MON_CSV_PATH)
+    mask = df["lop_nhan_dien_mon"].notna() & (df["lop_nhan_dien_mon"].str.strip() != "")
+    return (
+        df[mask]
+        .drop_duplicates("lop_nhan_dien_mon")
+        .set_index("lop_nhan_dien_mon")["ten_mon"]
+        .to_dict()
+    )
+
+
 def calculate_detected_nutrition(nutrition_table, predictions):
     """Tính dinh dưỡng CHỈ từ những thành phần Roboflow thực sự phát hiện.
     Mỗi lớp chỉ tính 1 phần dù xuất hiện nhiều khung (bbox) trong ảnh."""
@@ -466,12 +481,20 @@ def roboflow_detection_page():
 
     details, totals, unmatched = calculate_detected_nutrition(nutrition_table, predictions)
 
-    ten_list = [d["ten"] for d in details]
-    ten_phat_hien = ", ".join(ten_list) if ten_list else "Chưa khớp được thành phần nào trong bảng"
+    mon_name_map = load_mon_name_map()
+    ten_mon_list = list(dict.fromkeys(
+        mon_name_map[p["class"]] for p in predictions if p["class"] in mon_name_map
+    ))
+    if ten_mon_list:
+        ten_mon_hien_thi = ", ".join(ten_mon_list)
+    elif details:
+        ten_mon_hien_thi = details[0]["ten"]
+    else:
+        ten_mon_hien_thi = "Chưa nhận diện được"
     st.markdown(f"""
     <div class="rf-card">
         <div style="font-size:1.15rem; font-weight:700; margin-bottom:0.5rem;">
-            🍽️ Món nhận diện: {ten_phat_hien}
+            🍽️ Món nhận diện: {ten_mon_hien_thi}
         </div>
         <div class="rf-metric-grid">
             <div class="rf-metric-card">
