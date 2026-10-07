@@ -195,6 +195,24 @@ st.markdown("""
     .rf-source-note { font-size: 12px; color: #64748B; margin-top: 6px; }
     @media (max-width: 640px) { .rf-metric-grid { grid-template-columns: repeat(2, 1fr); } }
 
+    /* Conclusion card */
+    .conclusion-card {
+        background: #F8FAFC; border: 1.5px solid #CBD5E1;
+        border-radius: 14px; padding: 18px 20px; margin: 12px 0;
+    }
+    .conclusion-title {
+        font-size: 1rem; font-weight: 700; color: #1C1917; margin-bottom: 10px;
+    }
+    .conclusion-level {
+        display: inline-block; font-size: 0.82rem; font-weight: 600;
+        padding: 3px 10px; border-radius: 999px; margin-bottom: 10px;
+    }
+    .level-dat    { background: #D1FAE5; color: #065F46; }
+    .level-thieu  { background: #FEF3C7; color: #92400E; }
+    .level-vuot   { background: #FEE2E2; color: #991B1B; }
+    .conclusion-pro { color: #15803D; font-size: 0.88rem; margin: 5px 0; }
+    .conclusion-con { color: #B45309; font-size: 0.88rem; margin: 5px 0; }
+
     /* Dish suggestion cards */
     .dish-card {
         background: white; border: 1.5px solid #a7f3d0; border-radius: 16px;
@@ -234,6 +252,111 @@ NGUON_RDA = (
     "Nữ 2.380 kcal; bữa sáng chiếm 25–30% năng lượng cả ngày."
 )
 
+DISH_CONCLUSIONS = {
+    "com_suon": {
+        "pros": [
+            "Cung cấp đủ protein từ thịt sườn và chả.",
+            "Có rau tươi kèm theo (dưa leo, cà chua).",
+            "Năng lượng phù hợp cho buổi học sáng.",
+        ],
+        "cons": [
+            "Hàm lượng chất xơ còn thấp — nên thêm rau xanh.",
+            "Chất béo từ bì heo khá cao, nên ăn vừa phải.",
+        ],
+    },
+    "xoi_man": {
+        "pros": [
+            "Cung cấp năng lượng cao nhờ tinh bột từ nếp — phù hợp cho buổi sáng cần nhiều sức.",
+            "Có protein từ thịt, tôm khô, lạp xưởng và trứng.",
+            "Bổ sung chất béo thực vật tốt từ nước cốt dừa, giúp xôi dẻo béo và no lâu.",
+        ],
+        "cons": [
+            "Hàm lượng chất xơ còn thấp — nên thêm rau củ như cà rốt, đậu Hà Lan hoặc ăn kèm dưa leo, giá đỗ.",
+            "Lượng natri (muối) khá cao do tôm khô, lạp xưởng và củ cải muối — nên ăn vừa phải, người huyết áp cao cần lưu ý.",
+            "Lạp xưởng và nước cốt dừa chứa nhiều chất béo — ăn nhiều dễ tăng cân, nên kết hợp vận động.",
+        ],
+    },
+    "sandwich": {
+        "pros": [
+            "Cung cấp tinh bột từ bánh mì — tạo năng lượng nhanh cho buổi sáng.",
+            "Có protein từ trứng, thịt gà, cá ngừ hoặc tôm tùy loại nhân.",
+            "Kèm rau xà lách, dưa leo, cà chua — bổ sung chất xơ và vitamin.",
+            "Dễ làm, nhanh gọn, linh hoạt thay đổi nhân để không bị ngán.",
+        ],
+        "cons": [
+            "Sốt mayonnaise và phô mai chứa nhiều chất béo — nên dùng vừa phải.",
+            "Nhân chế biến sẵn (xúc xích, thịt xông khói, cá ngừ đóng hộp) có thể chứa nhiều muối.",
+            "Một số biến tấu chiên ngập dầu làm tăng đáng kể calo và chất béo.",
+        ],
+    },
+    "banh_bao": {
+        "pros": [
+            "Cung cấp tinh bột từ vỏ bánh — tạo năng lượng nhanh, tiện lợi cho buổi sáng.",
+            "Có protein từ nhân thịt băm và trứng cút.",
+            "Tiện lợi, dễ ăn, phù hợp cho học sinh bận rộn.",
+        ],
+        "cons": [
+            "Hàm lượng chất xơ thấp — nên ăn kèm thêm rau hoặc trái cây.",
+            "Nhân chế biến sẵn có thể chứa nhiều muối và chất bảo quản.",
+            "Một số biến tấu chiên ngập dầu làm tăng đáng kể calo và chất béo.",
+        ],
+    },
+    "pho": {
+        "pros": [
+            "Cung cấp tinh bột từ bánh phở bột gạo — tạo năng lượng ổn định cho buổi sáng.",
+            "Có protein từ thịt bò/gà cắt lát mỏng — giúp no lâu và đủ sức cho buổi học.",
+            "Nước dùng ninh xương kèm thảo quả, quế, hồi — giàu calci và khoáng chất, hỗ trợ xương chắc khỏe.",
+            "Ăn kèm rau thơm, giá đỗ, hành lá và chanh — bổ sung chất xơ, vitamin và hỗ trợ tiêu hóa.",
+            "Là món điểm tâm truyền thống, dễ tiêu hóa nhờ nước dùng nóng.",
+        ],
+        "cons": [
+            "Người ăn kiêng tinh bột nên giảm lượng bánh phở, ăn nhiều thịt và rau hơn.",
+            "Lượng muối trong nước dùng và nước mắm khá cao — người huyết áp cao hoặc có vấn đề về thận cần hạn chế.",
+            "Một số quán sử dụng nhiều mì chính — nên chọn quán nêm nếm tự nhiên.",
+        ],
+    },
+    "banh_cuon": {
+        "pros": [
+            "Cung cấp tinh bột từ vỏ bánh bột gạo hấp tráng mỏng — năng lượng nhẹ nhàng, dễ tiêu hóa.",
+            "Có protein từ nhân thịt heo xay, nấm mèo và hành tím — hỗ trợ no lâu.",
+            "Thường ăn kèm chả lụa, giá đỗ và rau thơm — bổ sung thêm chất đạm, chất xơ và vitamin.",
+            "Nước chấm chua ngọt từ nước mắm, chanh, ớt, tỏi — kích thích vị giác, dễ ăn.",
+        ],
+        "cons": [
+            "Vỏ bánh từ gạo tinh chế nên chất xơ thấp — nên tăng cường rau sống, giá đỗ ăn kèm.",
+            "Nhân thịt xào với dầu ăn và mỡ hành phi khá nhiều chất béo — người kiểm soát cân nặng nên ăn vừa phải.",
+            "Nước mắm ăn kèm thường mặn — người huyết áp cao hoặc có vấn đề về thận cần lưu ý.",
+            "Một số biến tấu (bánh cuốn thịt nướng, bánh cuốn trứng) có thêm calo và chất béo.",
+        ],
+    },
+    "nui_xao": {
+        "pros": [
+            "Cung cấp tinh bột từ nui bột mì — tạo năng lượng khá tốt cho buổi sáng.",
+            "Có protein từ thịt bò, tôm, trứng, xúc xích tùy loại — giúp no lâu.",
+            "Rau củ kèm theo (ớt chuông, cải ngọt, cà rốt, hành tây) bổ sung chất xơ và vitamin.",
+            "Nước sốt đậm đà từ nước tương, dầu hào, tương cà — giúp món ăn thơm ngon, dễ ăn.",
+            "Chế biến nhanh gọn, linh hoạt nhiều biến tấu để đổi bữa không bị ngán.",
+        ],
+        "cons": [
+            "Nui từ bột mì tinh chế nên chất xơ vẫn thấp — nên tăng cường rau củ ăn kèm.",
+            "Món xào dùng nhiều dầu ăn — người kiểm soát cân nặng nên giảm lượng dầu.",
+            "Nước sốt chứa dầu hào, nước tương và hạt nêm với lượng muối khá cao — người huyết áp cao cần lưu ý.",
+            "Một số biến tấu dùng xúc xích hoặc thêm mayonnaise làm tăng calo và chất béo.",
+        ],
+    },
+    "banh_mi": {
+        "pros": [
+            "Cung cấp tinh bột từ ổ bánh mì — tạo năng lượng tiện lợi cho buổi sáng.",
+            "Có protein từ nhân như thịt, chả, trứng hoặc cá — giúp bữa ăn no và đầy đủ hơn.",
+            "Thường ăn kèm dưa leo, rau thơm và đồ chua — bổ sung rau củ, tạo vị tươi ngon.",
+            "Có nhiều loại nhân để lựa chọn, dễ thay đổi theo khẩu vị.",
+        ],
+        "cons": [
+            "Pate, bơ, mayonnaise và một số loại thịt chế biến sẵn làm tăng lượng chất béo và muối.",
+            "Lượng rau trong một ổ bánh mì thường không nhiều — có thể thêm rau hoặc ăn kèm trái cây để tăng chất xơ.",
+        ],
+    },
+}
 
 def danh_gia_khau_phan_sang(calo_do_duoc, gioi_tinh):
     """So sánh calo bữa sáng với khuyến nghị theo giới tính.
@@ -292,6 +415,21 @@ def load_mon_name_map():
         df[mask]
         .drop_duplicates("lop_nhan_dien_mon")
         .set_index("lop_nhan_dien_mon")["ten_mon"]
+        .to_dict()
+    )
+
+
+@st.cache_data
+def load_mon_ma_map():
+    """Trả về dict {lop_nhan_dien_mon: ma_mon} để tra kết luận dinh dưỡng."""
+    if not MON_CSV_PATH.is_file():
+        return {}
+    df = pd.read_csv(MON_CSV_PATH)
+    mask = df["lop_nhan_dien_mon"].notna() & (df["lop_nhan_dien_mon"].str.strip() != "")
+    return (
+        df[mask]
+        .drop_duplicates("lop_nhan_dien_mon")
+        .set_index("lop_nhan_dien_mon")["ma_mon"]
         .to_dict()
     )
 
@@ -482,8 +620,12 @@ def roboflow_detection_page():
     details, totals, unmatched = calculate_detected_nutrition(nutrition_table, predictions)
 
     mon_name_map = load_mon_name_map()
+    mon_ma_map = load_mon_ma_map()
     ten_mon_list = list(dict.fromkeys(
         mon_name_map[p["class"]] for p in predictions if p["class"] in mon_name_map
+    ))
+    ma_mon_list = list(dict.fromkeys(
+        mon_ma_map[p["class"]] for p in predictions if p["class"] in mon_ma_map
     ))
     if ten_mon_list:
         ten_mon_hien_thi = ", ".join(ten_mon_list)
@@ -567,6 +709,31 @@ def roboflow_detection_page():
         <div class="rf-source-note">📖 Ngưỡng khuyến nghị bữa sáng ({gender}): {muc_thap}–{muc_cao} kcal. {NGUON_RDA}</div>
     </div>
     """, unsafe_allow_html=True)
+
+    # Kết luận dinh dưỡng theo từng món nhận diện được
+    level_label = {"dat": "Đạt khuyến nghị", "thieu": "Chưa đạt", "vuot": "Cần cải thiện"}[trang_thai]
+    level_class = {"dat": "level-dat", "thieu": "level-thieu", "vuot": "level-vuot"}[trang_thai]
+    for i, ma_mon in enumerate(ma_mon_list):
+        conclusion = DISH_CONCLUSIONS.get(ma_mon)
+        if not conclusion:
+            continue
+        ten_mon_hien_thi_ket_luan = ten_mon_list[i] if i < len(ten_mon_list) else ma_mon
+        pros_html = "".join(
+            f'<div class="conclusion-pro">✅ {p}</div>' for p in conclusion["pros"]
+        )
+        cons_html = "".join(
+            f'<div class="conclusion-con">⚠️ {c}</div>' for c in conclusion["cons"]
+        )
+        st.markdown(f"""
+        <div class="conclusion-card">
+            <div class="conclusion-title">📊 Nhận xét: {ten_mon_hien_thi_ket_luan}</div>
+            <span class="conclusion-level {level_class}">{level_label}</span>
+            <div style="margin-top:8px; font-weight:600; font-size:0.88rem; color:#15803D; margin-bottom:4px;">Ưu điểm</div>
+            {pros_html}
+            <div style="margin-top:10px; font-weight:600; font-size:0.88rem; color:#B45309; margin-bottom:4px;">Lưu ý</div>
+            {cons_html}
+        </div>
+        """, unsafe_allow_html=True)
 
     if unmatched:
         st.warning(
