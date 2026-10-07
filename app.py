@@ -435,21 +435,33 @@ def load_mon_ma_map():
 
 
 def calculate_detected_nutrition(nutrition_table, predictions):
-    """Tính dinh dưỡng CHỈ từ những thành phần Roboflow thực sự phát hiện.
-    Mỗi lớp chỉ tính 1 phần dù xuất hiện nhiều khung (bbox) trong ảnh."""
+    """Tính dinh dưỡng từ những thành phần Roboflow phát hiện.
+    Mỗi lớp chỉ tính 1 phần dù xuất hiện nhiều khung (bbox).
+    Lớp chưa có trong bảng dinh dưỡng vẫn được liệt kê với giá trị '—'."""
     seen_classes = dict.fromkeys(p["class"] for p in predictions)  # unique, preserve order
     counts = Counter(p["class"] for p in predictions)
     details = []
     totals = {"calo": 0.0, "protein": 0.0, "carb": 0.0, "fat": 0.0}
+    unmatched = set()
     for code in seen_classes:
         if code not in nutrition_table.index:
+            unmatched.add(code)
+            details.append({
+                "ten": code,
+                "so_khung": counts[code],
+                "khoi_luong": None,
+                "calo": None,
+                "protein": None,
+                "carb": None,
+                "fat": None,
+            })
             continue
         row = nutrition_table.loc[code]
-        mass = float(row["khoi_luong_mac_dinh_g"])  # luôn 1 phần
+        mass = float(row["khoi_luong_mac_dinh_g"])
         ratio = mass / 100
         detail = {
             "ten": row["ten_thanh_phan"],
-            "so_khung": counts[code],  # số bbox để tham khảo
+            "so_khung": counts[code],
             "khoi_luong": mass,
             "calo": float(row["calo_100g"]) * ratio,
             "protein": float(row["protein_100g"]) * ratio,
@@ -459,7 +471,6 @@ def calculate_detected_nutrition(nutrition_table, predictions):
         details.append(detail)
         for k in totals:
             totals[k] += detail[k]
-    unmatched = set(counts) - set(nutrition_table.index)
     return details, totals, unmatched
 
 
@@ -666,13 +677,18 @@ def roboflow_detection_page():
             ["ten", "so_khung", "khoi_luong", "calo", "protein", "carb", "fat"]
         ]
         details_df.columns = [
-            "Tên thành phần", "Số khung phát hiện", "Khối lượng (g)", "Calo",
+            "Tên thành phần", "Số khung", "Khối lượng (g)", "Calo",
             "Protein (g)", "Carb (g)", "Fat (g)",
         ]
+        def fmt_num(x, fmt):
+            return "—" if x is None or (isinstance(x, float) and pd.isna(x)) else fmt.format(x)
         st.dataframe(
             details_df.style.format({
-                "Khối lượng (g)": "{:.0f}", "Calo": "{:.0f}",
-                "Protein (g)": "{:.1f}", "Carb (g)": "{:.1f}", "Fat (g)": "{:.1f}",
+                "Khối lượng (g)": lambda x: fmt_num(x, "{:.0f}"),
+                "Calo":           lambda x: fmt_num(x, "{:.0f}"),
+                "Protein (g)":    lambda x: fmt_num(x, "{:.1f}"),
+                "Carb (g)":       lambda x: fmt_num(x, "{:.1f}"),
+                "Fat (g)":        lambda x: fmt_num(x, "{:.1f}"),
             }),
             use_container_width=True,
             hide_index=True,
