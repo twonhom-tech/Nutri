@@ -232,7 +232,7 @@ st.markdown("""
 
 ROBOFLOW_SERVER_URL = "https://serverless.roboflow.com"
 ROBOFLOW_WORKSPACE = "nckh-nan"
-ROBOFLOW_WORKFLOW_ID = "breakfast-demo-vbreakfast-demo-3-yolo11s-t1-logic"
+ROBOFLOW_WORKFLOW_ID = "breakfast-demo-vbreakfast-demo-5-yolo11s-t1-logic"
 NUTRITION_CSV_PATH = Path(__file__).with_name("dinh_duong_thanh_phan.csv")
 MON_CSV_PATH = Path(__file__).with_name("mon_thanh_phan.csv")
 ROBOFLOW_CONFIDENCE_THRESHOLD = 0.4
