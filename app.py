@@ -7,6 +7,11 @@ import tempfile
 from PIL import Image, ImageDraw, ImageFont
 from inference_sdk import InferenceHTTPClient, InferenceConfiguration
 from streamlit.errors import StreamlitSecretNotFoundError
+try:
+    from ultralytics import YOLO as _YOLO
+    _ULTRALYTICS_OK = True
+except ImportError:
+    _ULTRALYTICS_OK = False
 
 # Page configuration
 st.set_page_config(
@@ -233,6 +238,7 @@ st.markdown("""
 ROBOFLOW_SERVER_URL = "https://serverless.roboflow.com"
 ROBOFLOW_WORKSPACE = "nckh-nan"
 ROBOFLOW_WORKFLOW_ID = "breakfast-demo-vbreakfast-demo-5-yolo11s-t1-logic"
+YOLO_WEIGHTS_PATH = Path(__file__).with_name("weights.pt")
 NUTRITION_CSV_PATH = Path(__file__).with_name("dinh_duong_thanh_phan.csv")
 MON_CSV_PATH = Path(__file__).with_name("mon_thanh_phan.csv")
 ROBOFLOW_CONFIDENCE_THRESHOLD = 0.4
@@ -358,6 +364,17 @@ DISH_CONCLUSIONS = {
     },
 }
 
+# Mapping bổ sung cho những class Roboflow không có trong mon_thanh_phan.csv.
+# Key = class code Roboflow trả về, Value = (ten_mon, ma_mon)
+# Thêm/sửa tại đây khi mô hình có thêm class mới.
+EXTRA_CLASS_TO_DISH = {
+    "Mi":         ("Mì trộn",          "mi_tron"),
+    "Bun":        ("Bún thịt nướng",   "bun_thit_nuong"),
+    "Banh mi":    ("Bánh mì",          "banh_mi"),
+    "Lat banh mi":("Bánh mì",          "banh_mi"),
+}
+
+
 def danh_gia_khau_phan_sang(calo_do_duoc, gioi_tinh):
     """So sánh calo bữa sáng với khuyến nghị theo giới tính.
     Trả về: (phan_tram, muc_thap, muc_cao, trang_thai, mo_ta)
@@ -395,6 +412,45 @@ def load_roboflow_client(api_key):
     ).configure(InferenceConfiguration(api_key_transport="header"))
 
 
+@st.cache_resource
+def load_yolo_model():
+    """Load mô hình YOLO từ file weights.pt cục bộ."""
+    if not _ULTRALYTICS_OK:
+        raise ImportError("Thư viện ultralytics chưa được cài. Chạy: pip install ultralytics")
+    if not YOLO_WEIGHTS_PATH.is_file():
+        raise FileNotFoundError(f"Không tìm thấy {YOLO_WEIGHTS_PATH}")
+    return _YOLO(str(YOLO_WEIGHTS_PATH))
+
+
+def run_yolo_local(model, uploaded_file) -> list:
+    """Chạy inference cục bộ, trả về list predictions cùng format với parse_roboflow_predictions()."""
+    import numpy as np
+    image = Image.open(uploaded_file).convert("RGB")
+    img_array = np.array(image)
+    results = model(img_array, conf=ROBOFLOW_CONFIDENCE_THRESHOLD, verbose=False)
+    predictions = []
+    for result in results:
+        boxes = result.boxes
+        if boxes is None:
+            continue
+        names = result.names  # {0: "Banh cuon", 1: "Nui", ...}
+        for box in boxes:
+            conf = float(box.conf[0])
+            cls_id = int(box.cls[0])
+            class_name = names.get(cls_id, str(cls_id))
+            x1, y1, x2, y2 = box.xyxy[0].tolist()
+            cx = (x1 + x2) / 2
+            cy = (y1 + y2) / 2
+            w = x2 - x1
+            h = y2 - y1
+            predictions.append({
+                "class": class_name,
+                "confidence": conf,
+                "x": cx, "y": cy, "width": w, "height": h,
+            })
+    return predictions
+
+
 @st.cache_data
 def load_nutrition_table():
     if not NUTRITION_CSV_PATH.is_file():
@@ -405,95 +461,120 @@ def load_nutrition_table():
 
 
 @st.cache_data
-def load_mon_table():
-    """Bảng món ăn -> thành phần chuẩn (mon_thanh_phan.csv).
-
-    Mỗi món có 1 "lớp nhận diện" (lop_nhan_dien_mon) là lớp Roboflow đặc trưng
-    riêng của món đó (ví dụ lớp "Vo banh mi" chỉ xuất hiện ở món "Bánh mỳ thịt").
-    Khi lớp này được YOLO phát hiện trong ảnh, hệ thống coi như ĐÃ NHẬN DIỆN
-    ĐƯỢC MÓN ĂN, và từ đó cộng dồn TOÀN BỘ các thành phần chuẩn của món theo số
-    liệu nhóm NCKH tự đo (kể cả thành phần như nước mắm, nước tương, sốt
-    mayonnaise... mà Roboflow không có lớp để nhận diện bằng ảnh), không chỉ
-    tính riêng những lớp mà YOLO vừa khoanh được.
-    """
+def load_mon_name_map():
+    """Trả về dict {lop_nhan_dien_mon: ten_mon} để lấy tên món từ class Roboflow."""
     if not MON_CSV_PATH.is_file():
-        raise FileNotFoundError(f"Không tìm thấy bảng món ăn: {MON_CSV_PATH.name}")
+        return {}
     df = pd.read_csv(MON_CSV_PATH)
-    df["ma_lop_thanh_phan"] = df["ma_lop_thanh_phan"].fillna("")
-    df["lop_nhan_dien_mon"] = df["lop_nhan_dien_mon"].fillna("")
-    return df
+    mask = df["lop_nhan_dien_mon"].notna() & (df["lop_nhan_dien_mon"].str.strip() != "")
+    return (
+        df[mask]
+        .drop_duplicates("lop_nhan_dien_mon")
+        .set_index("lop_nhan_dien_mon")["ten_mon"]
+        .to_dict()
+    )
 
 
-def nhan_dien_mon_va_tinh_dinh_duong(mon_table, nutrition_table, predictions):
-    """Nhận diện MÓN ĂN trước (qua lớp đặc trưng), rồi cộng dồn TOÀN BỘ thành
-    phần chuẩn của món đó — bao gồm cả thành phần Roboflow không có lớp riêng
-    (nước mắm, nước tương, sốt mayonnaise, nước lèo, dầu ăn...), vì các thành
-    phần này vẫn thuộc món và đã được nhóm NCKH đo khối lượng khi xây bảng.
+@st.cache_data
+def load_mon_ma_map():
+    """Trả về dict {lop_nhan_dien_mon: ma_mon} để tra kết luận dinh dưỡng."""
+    if not MON_CSV_PATH.is_file():
+        return {}
+    df = pd.read_csv(MON_CSV_PATH)
+    mask = df["lop_nhan_dien_mon"].notna() & (df["lop_nhan_dien_mon"].str.strip() != "")
+    return (
+        df[mask]
+        .drop_duplicates("lop_nhan_dien_mon")
+        .set_index("lop_nhan_dien_mon")["ma_mon"]
+        .to_dict()
+    )
 
-    Mỗi món chỉ tính dinh dưỡng MỘT LẦN dù ảnh có nhiều khung cùng lớp neo.
-    Những lớp phát hiện được nhưng KHÔNG thuộc thành phần của món nào vừa nhận
-    diện (vd ăn kèm thêm 1 món khác, hoặc chưa nhận diện được món nào) được
-    tính bổ sung riêng theo bảng thành phần đơn lẻ (dinh_duong_thanh_phan.csv).
 
-    Trả về: (dishes_found, extra_details, totals, unmatched_classes, counts)
+@st.cache_data
+def build_full_class_to_dish_maps():
+    """Xây dựng map toàn diện {class → ten_mon} và {class → ma_mon} theo 3 lớp ưu tiên:
+    1 (thấp nhất)  EXTRA_CLASS_TO_DISH  — hardcoded cho món ngoài CSV
+    2              component duy nhất   — class thành phần chỉ xuất hiện trong 1 món
+    3 (cao nhất)   lop_nhan_dien_mon    — class chính xác định món từ CSV
     """
+    name_map = {k: v[0] for k, v in EXTRA_CLASS_TO_DISH.items()}
+    ma_map   = {k: v[1] for k, v in EXTRA_CLASS_TO_DISH.items()}
+
+    if not MON_CSV_PATH.is_file():
+        return name_map, ma_map
+
+    df = pd.read_csv(MON_CSV_PATH)
+
+    # Lớp 2: component class duy nhất chỉ xuất hiện trong đúng 1 món
+    comp_df = df[
+        (df["loai_dong"] == "thanh_phan") &
+        df["ma_lop_thanh_phan"].notna() &
+        (df["ma_lop_thanh_phan"].str.strip() != "")
+    ][["ma_lop_thanh_phan", "ten_mon", "ma_mon"]]
+    if not comp_df.empty:
+        unique_classes = (
+            comp_df.groupby("ma_lop_thanh_phan")["ma_mon"]
+            .nunique()
+            .pipe(lambda s: s[s == 1].index)
+        )
+        for _, row in (
+            comp_df[comp_df["ma_lop_thanh_phan"].isin(unique_classes)]
+            .drop_duplicates("ma_lop_thanh_phan")
+            .iterrows()
+        ):
+            name_map[row["ma_lop_thanh_phan"]] = row["ten_mon"]
+            ma_map[row["ma_lop_thanh_phan"]]   = row["ma_mon"]
+
+    # Lớp 3 (ưu tiên cao nhất): lop_nhan_dien_mon
+    prim_df = df[
+        df["lop_nhan_dien_mon"].notna() &
+        (df["lop_nhan_dien_mon"].str.strip() != "")
+    ].drop_duplicates("lop_nhan_dien_mon")
+    for _, row in prim_df.iterrows():
+        name_map[row["lop_nhan_dien_mon"]] = row["ten_mon"]
+        ma_map[row["lop_nhan_dien_mon"]]   = row["ma_mon"]
+
+    return name_map, ma_map
+
+
+def calculate_detected_nutrition(nutrition_table, predictions):
+    """Tính dinh dưỡng từ những thành phần Roboflow phát hiện.
+    Mỗi lớp chỉ tính 1 phần dù xuất hiện nhiều khung (bbox).
+    Lớp chưa có trong bảng dinh dưỡng vẫn được liệt kê với giá trị '—'."""
+    seen_classes = dict.fromkeys(p["class"] for p in predictions)  # unique, preserve order
     counts = Counter(p["class"] for p in predictions)
-    detected_classes = set(counts)
-
-    anchor_rows = mon_table[
-        (mon_table["loai_dong"] == "tong_mon") & (mon_table["lop_nhan_dien_mon"] != "")
-    ]
-    matched_mon = anchor_rows[anchor_rows["lop_nhan_dien_mon"].isin(detected_classes)]
-
+    details = []
     totals = {"calo": 0.0, "protein": 0.0, "carb": 0.0, "fat": 0.0}
-    dishes_found = []
-    accounted_classes = set()
-
-    for _, tong_row in matched_mon.iterrows():
-        ma_mon = tong_row["ma_mon"]
-        comp_rows = mon_table[
-            (mon_table["ma_mon"] == ma_mon) & (mon_table["loai_dong"] == "thanh_phan")
-        ]
-        dishes_found.append({
-            "ma_mon": ma_mon,
-            "ten_mon": tong_row["ten_mon"],
-            "lop_nhan_dien": tong_row["lop_nhan_dien_mon"],
-            "components": comp_rows,
-            "tong": tong_row,
-        })
-        accounted_classes.add(tong_row["lop_nhan_dien_mon"])
-        for lop in comp_rows["ma_lop_thanh_phan"]:
-            if lop:
-                accounted_classes.add(lop)
-        totals["calo"] += float(tong_row["calo_kcal"])
-        totals["protein"] += float(tong_row["protein_g"])
-        totals["carb"] += float(tong_row["carb_g"])
-        totals["fat"] += float(tong_row["fat_g"])
-
-    extra_classes = detected_classes - accounted_classes
-    extra_details = []
-    for component_code in sorted(extra_classes):
-        if component_code not in nutrition_table.index:
+    unmatched = set()
+    for code in seen_classes:
+        if code not in nutrition_table.index:
+            unmatched.add(code)
+            details.append({
+                "ten": code,
+                "so_khung": counts[code],
+                "khoi_luong": None,
+                "calo": None,
+                "protein": None,
+                "carb": None,
+                "fat": None,
+            })
             continue
-        row = nutrition_table.loc[component_code]
-        mass = float(row["khoi_luong_mac_dinh_g"])  # tính 1 lần/lớp, không nhân theo số khung
+        row = nutrition_table.loc[code]
+        mass = float(row["khoi_luong_mac_dinh_g"])
         ratio = mass / 100
         detail = {
             "ten": row["ten_thanh_phan"],
-            "ma": component_code,
-            "so_khung": counts[component_code],
+            "so_khung": counts[code],
             "khoi_luong": mass,
             "calo": float(row["calo_100g"]) * ratio,
             "protein": float(row["protein_100g"]) * ratio,
             "carb": float(row["carb_100g"]) * ratio,
             "fat": float(row["fat_100g"]) * ratio,
         }
-        extra_details.append(detail)
-        for nutrient in totals:
-            totals[nutrient] += detail[nutrient]
-
-    unmatched_classes = extra_classes - set(nutrition_table.index)
-    return dishes_found, extra_details, totals, unmatched_classes, counts
+        details.append(detail)
+        for k in totals:
+            totals[k] += detail[k]
+    return details, totals, unmatched
 
 
 def run_roboflow_workflow(client, uploaded_file):
@@ -612,32 +693,44 @@ def roboflow_detection_page():
 
     image = Image.open(uploaded_file)
     st.image(image, caption="Ảnh đã tải lên", use_container_width=True)
-    api_key = get_roboflow_api_key()
-    if not api_key:
-        st.warning(
-            "Chưa cấu hình ROBOFLOW_API_KEY. Thêm khóa vào Streamlit Secrets "
-            "hoặc biến môi trường để nhận diện."
-        )
-        return
+    use_local = YOLO_WEIGHTS_PATH.is_file() and _ULTRALYTICS_OK
+    if use_local:
+        st.info("🖼️ Hình ảnh món ăn được phân tích bằng mô hình YOLOv11s")
+    else:
+        api_key = get_roboflow_api_key()
+        if not api_key:
+            st.warning(
+                "Không tìm thấy `weights.pt` và chưa cấu hình ROBOFLOW_API_KEY. "
+                "Đặt file `weights.pt` cùng thư mục với `app.py`, hoặc thêm "
+                "ROBOFLOW_API_KEY vào Streamlit Secrets / biến môi trường."
+            )
+            return
     try:
         nutrition_table = load_nutrition_table()
-        mon_table = load_mon_table()
     except (FileNotFoundError, KeyError, pd.errors.ParserError) as error:
         st.error(f"Không thể tải bảng dinh dưỡng: {error}")
         return
 
     if not st.button("🔍 Nhận diện & tính dinh dưỡng", type="primary"):
         return
+
     try:
-        with st.spinner("Đang gửi ảnh lên Roboflow Serverless Cloud..."):
-            result = run_roboflow_workflow(load_roboflow_client(api_key), uploaded_file)
-            predictions = parse_roboflow_predictions(result)
+        if use_local:
+            with st.spinner("Đang chạy mô hình YOLO cục bộ..."):
+                model = load_yolo_model()
+                predictions = run_yolo_local(model, uploaded_file)
+            with st.expander("Xem kết quả thô từ YOLO"):
+                st.json(predictions)
+        else:
+            with st.spinner("Đang gửi ảnh lên Roboflow Serverless Cloud..."):
+                result = run_roboflow_workflow(load_roboflow_client(api_key), uploaded_file)
+                predictions = parse_roboflow_predictions(result)
+            with st.expander("Xem phản hồi từ Roboflow"):
+                st.json(result)
     except Exception as error:
-        st.error(f"Lỗi khi gọi Roboflow Workflow: {type(error).__name__}: {error}")
+        st.error(f"Lỗi khi nhận diện: {type(error).__name__}: {error}")
         return
 
-    with st.expander("Xem phản hồi từ Roboflow"):
-        st.json(result)
     if not predictions:
         st.warning(
             f"Không phát hiện thành phần nào với độ tin cậy từ "
@@ -651,16 +744,19 @@ def roboflow_detection_page():
         use_container_width=True,
     )
 
-    dishes_found, extra_details, totals, unmatched, counts = (
-        nhan_dien_mon_va_tinh_dinh_duong(mon_table, nutrition_table, predictions)
-    )
-    ten_mon_list = [d["ten_mon"] for d in dishes_found]
-    ma_mon_list = [d["ma_mon"] for d in dishes_found]
+    details, totals, unmatched = calculate_detected_nutrition(nutrition_table, predictions)
 
+    full_name_map, full_ma_map = build_full_class_to_dish_maps()
+    ten_mon_list = list(dict.fromkeys(
+        full_name_map[p["class"]] for p in predictions if p["class"] in full_name_map
+    ))
+    ma_mon_list = list(dict.fromkeys(
+        full_ma_map[p["class"]] for p in predictions if p["class"] in full_ma_map
+    ))
     if ten_mon_list:
         ten_mon_hien_thi = ", ".join(ten_mon_list)
-    elif extra_details:
-        ten_mon_hien_thi = "Chưa nhận diện được món cụ thể — tính theo từng thành phần riêng lẻ"
+    elif details:
+        ten_mon_hien_thi = details[0]["ten"]
     else:
         ten_mon_hien_thi = "Chưa nhận diện được"
     st.markdown(f"""
@@ -686,53 +782,23 @@ def roboflow_detection_page():
                 <div class="rf-metric-value">{totals['fat']:.1f}</div>
             </div>
         </div>
-        <div class="rf-source-note">📖 {NGUON_TU_DO}</div>
+        <div class="rf-source-note">📖 {NGUON_TU_DO} — mỗi thành phần tính 1 phần chuẩn</div>
     </div>
     """, unsafe_allow_html=True)
 
-    def fmt_num(x, fmt):
-        return "—" if x is None or (isinstance(x, float) and pd.isna(x)) else fmt.format(x)
-
-    for dish in dishes_found:
-        st.subheader(f"🍽️ {dish['ten_mon']}")
-        st.caption(
-            f"Nhận diện qua lớp \"{dish['lop_nhan_dien']}\" — liệt kê toàn bộ thành phần "
-            f"chuẩn của món (kể cả thành phần Roboflow không có lớp riêng như nước mắm, "
-            f"nước tương, sốt mayonnaise... vẫn được cộng đủ vì thuộc món)."
-        )
-        comp_df = dish["components"][
-            ["thanh_phan", "khoi_luong_g", "calo_kcal", "protein_g", "carb_g", "fat_g"]
-        ].copy()
-        comp_df.columns = ["Thành phần", "Khối lượng (g)", "Calo", "Protein (g)", "Carb (g)", "Fat (g)"]
-        tong = dish["tong"]
-        comp_df.loc[len(comp_df)] = [
-            "— Tổng cả món —", tong["khoi_luong_g"], tong["calo_kcal"],
-            tong["protein_g"], tong["carb_g"], tong["fat_g"],
-        ]
-        st.dataframe(
-            comp_df.style.format({
-                "Khối lượng (g)": "{:.0f}", "Calo": "{:.0f}",
-                "Protein (g)": "{:.1f}", "Carb (g)": "{:.1f}", "Fat (g)": "{:.1f}",
-            }),
-            use_container_width=True,
-            hide_index=True,
-        )
-
-    if extra_details:
-        st.subheader("➕ Thành phần phát hiện thêm (ngoài món chính)")
-        st.caption(
-            "Các lớp này được YOLO phát hiện nhưng không thuộc thành phần chuẩn của món "
-            "vừa nhận diện (hoặc chưa nhận diện được món nào) — tính riêng, mỗi lớp 1 phần."
-        )
-        extra_df = pd.DataFrame(extra_details)[
+    if details:
+        st.subheader("📋 Thành phần nhận diện được")
+        details_df = pd.DataFrame(details)[
             ["ten", "so_khung", "khoi_luong", "calo", "protein", "carb", "fat"]
         ]
-        extra_df.columns = [
+        details_df.columns = [
             "Tên thành phần", "Số khung", "Khối lượng (g)", "Calo",
             "Protein (g)", "Carb (g)", "Fat (g)",
         ]
+        def fmt_num(x, fmt):
+            return "—" if x is None or (isinstance(x, float) and pd.isna(x)) else fmt.format(x)
         st.dataframe(
-            extra_df.style.format({
+            details_df.style.format({
                 "Khối lượng (g)": lambda x: fmt_num(x, "{:.0f}"),
                 "Calo":           lambda x: fmt_num(x, "{:.0f}"),
                 "Protein (g)":    lambda x: fmt_num(x, "{:.1f}"),
