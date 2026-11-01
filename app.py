@@ -537,6 +537,29 @@ def build_full_class_to_dish_maps():
     return name_map, ma_map
 
 
+def get_dish_components_from_csv(ma_mon: str):
+    """Đọc thành phần chuẩn và tổng dinh dưỡng của món từ mon_thanh_phan.csv.
+    Trả về (comp_df, totals_dict) hoặc (None, None) nếu không tìm thấy."""
+    if not MON_CSV_PATH.is_file():
+        return None, None
+    df = pd.read_csv(MON_CSV_PATH)
+    dish_df = df[df["ma_mon"] == ma_mon]
+    if dish_df.empty:
+        return None, None
+    comp_df = dish_df[dish_df["loai_dong"] == "thanh_phan"].copy()
+    tong_rows = dish_df[dish_df["loai_dong"] == "tong_mon"]
+    if tong_rows.empty:
+        return comp_df, None
+    tong = tong_rows.iloc[0]
+    totals = {
+        "calo":    float(tong.get("calo_kcal",  0) or 0),
+        "protein": float(tong.get("protein_g",  0) or 0),
+        "carb":    float(tong.get("carb_g",     0) or 0),
+        "fat":     float(tong.get("fat_g",      0) or 0),
+    }
+    return comp_df, totals
+
+
 def calculate_detected_nutrition(nutrition_table, predictions):
     """Tính dinh dưỡng từ những thành phần Roboflow phát hiện.
     Mỗi lớp chỉ tính 1 phần dù xuất hiện nhiều khung (bbox).
@@ -747,18 +770,34 @@ def roboflow_detection_page():
     details, totals, unmatched = calculate_detected_nutrition(nutrition_table, predictions)
 
     full_name_map, full_ma_map = build_full_class_to_dish_maps()
-    ten_mon_list = list(dict.fromkeys(
-        full_name_map[p["class"]] for p in predictions if p["class"] in full_name_map
-    ))
-    ma_mon_list = list(dict.fromkeys(
-        full_ma_map[p["class"]] for p in predictions if p["class"] in full_ma_map
-    ))
-    if ten_mon_list:
-        ten_mon_hien_thi = ", ".join(ten_mon_list)
-    elif details:
-        ten_mon_hien_thi = details[0]["ten"]
+
+    # Chọn 1 món duy nhất: tính tổng confidence của tất cả predictions khớp với từng món
+    dish_scores: dict[str, float] = {}
+    dish_ma:     dict[str, str]   = {}
+    for p in predictions:
+        cls = p["class"]
+        if cls in full_name_map:
+            ten = full_name_map[cls]
+            dish_scores[ten] = dish_scores.get(ten, 0.0) + p["confidence"]
+            dish_ma[ten] = full_ma_map.get(cls, "")
+
+    if dish_scores:
+        best_dish = max(dish_scores, key=dish_scores.__getitem__)
+        best_ma   = dish_ma.get(best_dish, "")
+        ten_mon_hien_thi = best_dish
+        ten_mon_list = [best_dish]
+        ma_mon_list  = [best_ma] if best_ma else []
+        # Lấy bảng thành phần chuẩn + tổng từ CSV
+        csv_comp_df, csv_totals = get_dish_components_from_csv(best_ma)
+        if csv_totals:
+            totals = csv_totals  # dùng số liệu chính xác từ CSV
     else:
-        ten_mon_hien_thi = "Chưa nhận diện được"
+        ten_mon_hien_thi = details[0]["ten"] if details else "Chưa nhận diện được"
+        ten_mon_list = []
+        ma_mon_list  = []
+        csv_comp_df  = None
+        csv_totals   = None
+
     st.markdown(f"""
     <div class="rf-card">
         <div style="font-size:1.15rem; font-weight:700; margin-bottom:0.5rem;">
@@ -782,12 +821,30 @@ def roboflow_detection_page():
                 <div class="rf-metric-value">{totals['fat']:.1f}</div>
             </div>
         </div>
-        <div class="rf-source-note">📖 {NGUON_TU_DO} — mỗi thành phần tính 1 phần chuẩn</div>
+        <div class="rf-source-note">📖 {NGUON_TU_DO}</div>
     </div>
     """, unsafe_allow_html=True)
 
-    if details:
-        st.subheader("📋 Thành phần nhận diện được")
+    # Bảng thành phần: ưu tiên CSV (đầy đủ), fallback về predicted nếu không có
+    if csv_comp_df is not None and not csv_comp_df.empty:
+        st.subheader("📋 Thành phần theo công thức chuẩn")
+        display_df = csv_comp_df[
+            ["thanh_phan", "khoi_luong_g", "calo_kcal", "protein_g", "carb_g", "fat_g"]
+        ].copy()
+        display_df.columns = [
+            "Thành phần", "Khối lượng (g)", "Calo (kcal)",
+            "Protein (g)", "Carb (g)", "Fat (g)",
+        ]
+        st.dataframe(
+            display_df.style.format({
+                "Khối lượng (g)": "{:.0f}", "Calo (kcal)": "{:.0f}",
+                "Protein (g)": "{:.1f}", "Carb (g)": "{:.1f}", "Fat (g)": "{:.1f}",
+            }),
+            use_container_width=True,
+            hide_index=True,
+        )
+    elif details:
+        st.subheader("📋 Thành phần Roboflow phát hiện")
         details_df = pd.DataFrame(details)[
             ["ten", "so_khung", "khoi_luong", "calo", "protein", "carb", "fat"]
         ]
